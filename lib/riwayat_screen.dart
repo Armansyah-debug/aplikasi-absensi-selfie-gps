@@ -12,8 +12,6 @@ class RiwayatScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Riwayat Lengkap'),
         centerTitle: true,
-        backgroundColor: const Color(0xFF4682B4),
-        foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirestoreService.getAllAbsen(),
@@ -30,7 +28,6 @@ class RiwayatScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Gabungkan data dari dua koleksi berbeda
               final absenDocs = absenSnapshot.data?.docs ?? [];
               final izinDocs = izinSnapshot.data?.docs ?? [];
 
@@ -51,7 +48,7 @@ class RiwayatScreen extends StatelessWidget {
                 return const Center(child: Text('Belum ada data riwayat'));
               }
 
-              // Sort berdasarkan waktu terbaru (Descending)
+              // Sort by timestamp descending
               allDocs.sort((a, b) {
                 final Timestamp? aTime = a['data']['timestamp'] as Timestamp?;
                 final Timestamp? bTime = b['data']['timestamp'] as Timestamp?;
@@ -72,24 +69,11 @@ class RiwayatScreen extends StatelessWidget {
                   return Dismissible(
                     key: Key(docId),
                     direction: DismissDirection.endToStart,
-                    confirmDismiss: (direction) async {
-                      return await showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Hapus Data?"),
-                          content: const Text("Data ini akan dihapus permanen dari riwayat."),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Batal")),
-                            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
-                          ],
-                        ),
-                      );
-                    },
                     background: Container(
                       color: Colors.red,
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(Icons.delete_forever, color: Colors.white, size: 30),
+                      child: const Icon(Icons.delete, color: Colors.white, size: 30),
                     ),
                     onDismissed: (_) async {
                       if (isAbsen) {
@@ -97,55 +81,74 @@ class RiwayatScreen extends StatelessWidget {
                       } else {
                         await FirestoreService.deleteIzinCuti(docId);
                       }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Data dihapus')),
+                      );
                     },
                     child: Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      color: isAbsen ? Colors.blue.shade50 : Colors.orange.shade50,
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        // MENAMPILKAN FOTO SELFIE JIKA TYPE ADALAH ABSEN
-                        leading: isAbsen 
-                          ? Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.grey[200],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: data['photo_url'] != null
-                                    ? Image.network(data['photo_url'], fit: BoxFit.cover, 
-                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.person))
-                                    : const Icon(Icons.person),
-                              ),
-                            )
-                          : CircleAvatar(
-                              backgroundColor: Colors.orange[100],
-                              radius: 30,
-                              child: const Icon(Icons.note_alt, color: Colors.orange),
-                            ),
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: isAbsen
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: data['photo_url'] != null && (data['photo_url'] as String).isNotEmpty
+                                    ? Image.network(
+                                        data['photo_url'],
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return const SizedBox(
+                                            width: 80,
+                                            height: 80,
+                                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 80,
+                                            height: 80,
+                                            color: Colors.grey[300],
+                                            child: const Icon(Icons.person, size: 40, color: Colors.grey),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        width: 80,
+                                        height: 80,
+                                        color: Colors.grey[300],
+                                        child: const Icon(Icons.person, size: 40, color: Colors.grey),
+                                      ),
+                              )
+                            : const Icon(Icons.note_alt_outlined, size: 40, color: Colors.orange),
                         title: Text(
                           isAbsen
                               ? '${data['name']} (${data['npm'] ?? '-'})'
-                              : '${data['name']} - ${data['jenis']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                              : '${data['name']} (${data['npm'] ?? '-'}) - ${data['jenis']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 4),
                             Text(
-                              data['timestamp'] != null 
-                                ? DateFormat('dd MMM yyyy, HH:mm').format((data['timestamp'] as Timestamp).toDate())
-                                : '-',
-                              style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                              DateFormat('dd MMM yyyy HH:mm').format((data['timestamp'] as Timestamp).toDate()),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
-                            if (isAbsen) Text('📍 ${data['address'] ?? 'Lokasi...'}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            if (!isAbsen) Text('📝 Alasan: ${data['alasan']}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 4),
+                            if (isAbsen) Text('Lokasi: ${data['address'] ?? 'Tidak tersedia'}'),
+                            if (!isAbsen) ...[
+                              Text('Mulai: ${DateFormat('dd MMM yyyy').format((data['tanggal_mulai'] as Timestamp).toDate())}'),
+                              Text('Akhir: ${DateFormat('dd MMM yyyy').format((data['tanggal_akhir'] as Timestamp).toDate())}'),
+                              Text('Alasan: ${data['alasan']}'),
+                            ],
                           ],
                         ),
+                        isThreeLine: true,
                       ),
                     ),
                   );
