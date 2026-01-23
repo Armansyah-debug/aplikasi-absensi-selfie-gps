@@ -49776,7 +49776,7 @@ s=m.d==="admin"
 r=t.p
 q=A.b([],r)
 if(s)B.b.L(q,A.b([m.ua(a,B.jy,B.Hp,new A.aqV(a),"Lihat semua absensi, izin, sakit, cuti mahasiswa","Data Absensi"),m.ua(a,B.fS,B.He,new A.aqW(a),"Jumlah hadir, telat, izin","Statistik")],r))
-else B.b.L(q,A.b([m.ua(a,B.jy,B.Hg,new A.aqX(a),"Selfie + Deteksi Wajah + Lokasi GPS","Absen Hadir"),m.ua(a,B.nB,B.HA,new A.aqY(a),"Isi alasan tanpa foto","Ajukan Izin/Cuti/Sakit"),m.ua(a,B.fS,B.Hn,new A.aqZ(a),"Realtime + thumbnail foto","Lihat Riwayat")],r))
+else B.b.L(q,A.b([m.ua(a,B.jy,B.Hg,new A.aqX(a),"Selfie + Deteksi Wajah + Lokasi GPS","Absen Hadir"),m.ua(a,B.nB,B.HA,new A.aqY(a),"Lengkapi form dan lampirkan foto bukti","Ajukan Izin/Cuti/Sakit"),m.ua(a,B.fS,B.Hn,new A.aqZ(a),"Realtime + thumbnail foto","Lihat Riwayat")],r))
 p=A.b([B.bN,B.np],t.t_)
 o=A.cQ(l,A.cj(s?"Dashboard Admin":"Absensi Wajah",l,l,l,B.TK,l,l),B.o,l,l,l,l,l,l,B.GA,l,l,l)
 n=A.b([B.fo],r)

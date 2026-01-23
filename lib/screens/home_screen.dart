@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.edit_calendar,
           color: Colors.orange.shade600,
           title: 'Ajukan Izin/Cuti/Sakit',
-          subtitle: 'Isi alasan tanpa foto',
+          subtitle: 'Lengkapi form dan lampirkan foto bukti',
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const IzinCutiScreen())),
         ),
