@@ -4,17 +4,14 @@
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
 
-# Kecualikan build/web hanya jika Anda benar-benar butuh deploy ke Vercel/Netlify langsung dari repo ini
-# !/build/web/
+# PENTING: Folder build utama tetap di-ignore, 
+# TAPI build/web harus masuk git agar terbaca Vercel
+/build/
+!/build/web/
 
 # Android Studio/IntelliJ
 .idea/
 *.iml
 android/local.properties
 android/.gradle/
-
-# Masalah yang tadi Anda alami (Intermediate files)
-**/android/app/build/
-**/android/app/intermediates/
