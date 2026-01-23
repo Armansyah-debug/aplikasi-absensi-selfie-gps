@@ -1,11 +1,15 @@
-import 'dart:io';
-import 'package:camera/camera.dart';
+import 'dart:typed_data';
+import 'dart:html' as html;
+import 'dart:ui' as ui;
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+
 import '../../services/supabase_service.dart';
+import '../../services/tfjs_service.dart';
 
 class AbsenScreen extends StatefulWidget {
   const AbsenScreen({super.key});
@@ -17,175 +21,168 @@ class AbsenScreen extends StatefulWidget {
 class _AbsenScreenState extends State<AbsenScreen> {
   final Color primaryBlue = Colors.blue.shade700;
 
-  CameraController? _cameraController;
-  Future<void>? _cameraInit;
-
-  final FaceDetector _faceDetector = FaceDetector(
-    options: FaceDetectorOptions(
-      performanceMode: FaceDetectorMode.accurate,
-    ),
-  );
-
+  html.VideoElement? _video;
+  html.CanvasElement? _canvas;
+  Uint8List? _imageBytes;
+  bool _cameraReady = false;
   bool _isProcessing = false;
-  String _status = 'Memuat kamera...';
+  String _status = 'Mengaktifkan kamera...';
+  final String _viewId = 'camera-view-web-2026';
 
   @override
   void initState() {
     super.initState();
+    TfjsService.loadModel();
     _initCamera();
   }
 
-// Inisialisasi kamera depan
+  // ================= CAMERA ENGINE =================
   Future<void> _initCamera() async {
-    final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras.first,
-    );
+    try {
+      if (html.window.navigator.mediaDevices == null) throw 'Gunakan HTTPS untuk akses kamera';
 
-// Inisialisasi CameraController
-    _cameraController = CameraController(
-      frontCamera,
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
+      _video = html.VideoElement()
+        ..autoplay = true
+        ..muted = true
+        ..style.objectFit = 'cover';
 
-// Mulai inisialisasi kamera
-    _cameraInit = _cameraController!.initialize();
-    await _cameraInit;
+      final stream = await html.window.navigator.mediaDevices!.getUserMedia({'video': true});
+      _video!.srcObject = stream;
 
-// Perbarui status setelah kamera siap
-    if (mounted) {
+      // ignore: undefined_prefixed_name
+      ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) => _video!);
+
+      _canvas = html.CanvasElement();
       setState(() {
-        _status = 'Posisikan wajah di dalam frame';
+        _cameraReady = true;
+        _status = 'Kamera siap, ambil foto';
       });
+    } catch (e) {
+      setState(() => _status = 'Gagal kamera: $e');
     }
   }
 
-// Mendapatkan lokasi dan alamat
-  Future<Map<String, String>> _getLocation() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      throw 'GPS tidak aktif';
-    }
+  void _capturePhoto() async {
+    if (_video == null || _video!.videoWidth == 0) return;
+    
+    _canvas!.width = _video!.videoWidth;
+    _canvas!.height = _video!.videoHeight;
+    _canvas!.context2D.drawImage(_video!, 0, 0);
 
-// Minta izin lokasi
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever) {
-      throw 'Izin lokasi ditolak';
-    }
-
-// Dapatkan posisi saat ini
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-// Cek apakah lokasi palsu
-    if (position.isMocked) throw 'Fake GPS terdeteksi';
-
-
-// Dapatkan alamat dari koordinat
-    final placemark = (await placemarkFromCoordinates(
-      position.latitude,
-      position.longitude,
-    ))
-        .first;
-
-// Kembalikan lokasi dan alamat
-    return {
-      'lokasi': '${position.latitude},${position.longitude}',
-      'alamat': '${placemark.subLocality ?? ''}, ${placemark.locality ?? ''}',
-    };
+    final blob = await _canvas!.toBlob('image/jpeg', 0.8);
+    final reader = html.FileReader();
+    reader.readAsArrayBuffer(blob);
+    reader.onLoadEnd.listen((_) {
+      setState(() {
+        _imageBytes = Uint8List.fromList(reader.result as List<int>);
+        _status = 'Foto siap dikirim';
+      });
+    });
   }
 
-// Proses absen
+  // ================= GEOLOCATION ENGINE (REVERSE GEOCODING) =================
+  Future<Map<String, String>> _getLocationData() async {
+    try {
+      // 1. Ambil koordinat GPS
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      final String lat = pos.latitude.toString();
+      final String lon = pos.longitude.toString();
+      String alamatFull = "Koordinat: $lat, $lon";
+
+      // 2. Ambil Nama Alamat via API (OpenStreetMap Nominatim dengan Header Lengkap)
+      try {
+        final response = await http.get(
+          Uri.parse('https://nominatim.openstreetmap.org'),
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'AbsensiApp/1.0', // Wajib ada agar tidak diblokir OSM
+          },
+        ).timeout(const Duration(seconds: 7));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          // 'display_name' berisi alamat lengkap (Jalan, Kelurahan, Kota, dll)
+          alamatFull = data['display_name'] ?? alamatFull;
+        }
+      } catch (e) {
+        debugPrint("Reverse Geocoding Error: $e");
+      }
+
+      return {
+        'lokasi': '$lat,$lon',
+        'alamat': alamatFull,
+      };
+    } catch (e) {
+      throw 'Gagal mendeteksi lokasi: $e';
+    }
+  }
+
+  // ================= ABSEN LOGIC =================
   Future<void> _absen() async {
-    if (_isProcessing) return;
+    if (_imageBytes == null || _isProcessing) return;
 
-// Mulai proses absen
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isProcessing = true;
+      _status = 'Memproses absensi...';
+    });
 
-// Tangani proses absen dengan try-catch
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw 'User belum login';
+      if (user == null) throw 'Sesi berakhir, silakan login ulang';
 
-      // Ambil foto
-      final XFile photo = await _cameraController!.takePicture();
+      // Dialog Input Nama & NPM
+      String namaInput = '';
+      String npmInput = '';
 
-      // Deteksi wajah
-      final faces = await _faceDetector.processImage(
-        InputImage.fromFilePath(photo.path),
-      );
-      if (faces.isEmpty) throw 'Wajah tidak terdeteksi';
-
-      // Input nama & NPM
-      String nama = '';
-      String npm = '';
-
-// Tampilkan dialog input data
-      final result = await showDialog<Map<String, String>>(
+      final inputData = await showDialog<Map<String, String>>(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Data Mahasiswa'),
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Konfirmasi Identitas'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                decoration: const InputDecoration(labelText: 'Nama'),
-                onChanged: (v) => nama = v,
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: 'NPM'),
-                keyboardType: TextInputType.number,
-                onChanged: (v) => npm = v,
-              ),
+              TextField(decoration: const InputDecoration(labelText: 'Nama'), onChanged: (v) => namaInput = v),
+              TextField(decoration: const InputDecoration(labelText: 'NPM'), onChanged: (v) => npmInput = v),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.pop(context, {'nama': nama, 'npm': npm}),
-              child: const Text('Absen'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, {'n': namaInput, 'p': npmInput}), child: const Text('Kirim')),
           ],
         ),
       );
 
-// Validasi input data
-      if (result == null ||
-          result['nama']!.isEmpty ||
-          result['npm']!.isEmpty) {
-        throw 'Nama & NPM wajib diisi';
+      if (inputData == null || inputData['n']!.isEmpty || inputData['p']!.isEmpty) {
+        throw 'Data wajib diisi';
       }
 
-// Dapatkan lokasi
-      final location = await _getLocation();
+      // 1. Dapatkan Lokasi & Alamat
+      setState(() => _status = 'Sedang mencari alamat...');
+      final locData = await _getLocationData();
 
-// Upload selfie & simpan data absen
-      final photoPath = await SupabaseService.uploadSelfie(
-        File(photo.path),
-        result['npm']!,
-      );
-      if (photoPath == null) throw 'Upload selfie gagal';
+      // 2. Upload Foto
+      setState(() => _status = 'Mengunggah foto...');
+      final photoPath = await SupabaseService.uploadSelfieWeb(_imageBytes!, inputData['p']!);
+      if (photoPath == null) throw 'Upload gagal';
 
-// Simpan data absen ke database
+      // 3. Simpan ke Database
+      setState(() => _status = 'Menyimpan data...');
       await SupabaseService.insertAbsen(
-        name: result['nama']!,
-        npm: result['npm']!,
-        location: location['lokasi']!,
-        address: location['alamat']!,
+        name: inputData['n']!,
+        npm: inputData['p']!,
+        location: locData['lokasi']!,
+        address: locData['alamat']!,
         foto_path: photoPath,
       );
 
-// Perbarui status sukses
-      setState(() => _status = 'Absen berhasil ✅');
+      setState(() => _status = 'Absen Berhasil ✅');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil!')));
+
     } catch (e) {
       setState(() => _status = 'Gagal: $e');
     } finally {
@@ -193,126 +190,44 @@ class _AbsenScreenState extends State<AbsenScreen> {
     }
   }
 
- @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Colors.grey.shade100,
-    appBar: AppBar(
-      title: const Text('Absen Hadir'),
-      backgroundColor: primaryBlue,
-      foregroundColor: Colors.white,
-      centerTitle: true,
-      elevation: 0,
-    ),
-    body: FutureBuilder(
-      future: _cameraInit,
-      builder: (_, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        return Column(
-          children: [
-            /// ===== CAMERA AREA =====
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 6),
-                    ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Presensi Web 2026'), backgroundColor: primaryBlue, foregroundColor: Colors.white),
+      body: Column(
+        children: [
+          Expanded(
+            child: _cameraReady 
+              ? HtmlElementView(viewType: _viewId) 
+              : const Center(child: CircularProgressIndicator()),
+          ),
+          if (_imageBytes != null) 
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Image.memory(_imageBytes!, height: 120),
+            ),
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Text(_status, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    Expanded(child: ElevatedButton(onPressed: _capturePhoto, child: const Text('FOTO'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: ElevatedButton(
+                      onPressed: _isProcessing ? null : _absen,
+                      style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
+                      child: Text(_isProcessing ? '...' : 'ABSEN'),
+                    )),
                   ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CameraPreview(_cameraController!),
-
-                      /// FRAME WAJAH
-                      Container(
-                        width: 260,
-                        height: 340,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ],
             ),
-
-            /// ===== STATUS CARD =====
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(
-                    _status,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: primaryBlue,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            /// ===== BUTTON AREA =====
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _absen,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 4,
-                  ),
-                  child: Text(
-                    _isProcessing ? 'MEMPROSES...' : 'ABSEN SEKARANG',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    _faceDetector.close();
-    super.dispose();
+          )
+        ],
+      ),
+    );
   }
 }

@@ -1,0 +1,36 @@
+# Flutter source files (tidak perlu di deploy)
+lib/
+test/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+pubspec.yaml
+pubspec.lock
+analysis_options.yaml
+
+# Platform folders (tidak perlu untuk web)
+android/
+ios/
+linux/
+macos/
+windows/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Documentation
+*.md
+!README.md
+
+# Other
+.gitignore
+backend/
+
+# Keep web source for reference
+!web/
+!build/web/

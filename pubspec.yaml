@@ -1,5 +1,5 @@
 name: absensi_selfie_lokasi
-description: App Absensi Wajah dengan Firebase Firestore - Manual Nama + NPM, Lokasi GPS, Izin/Cuti/Sakit, Riwayat Hapus Swipe.
+description: App Absensi Wajah (Web) + Lokasi GPS + Supabase + TensorFlow.js
 
 publish_to: 'none'
 
@@ -11,13 +11,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Supabase
   supabase_flutter: ^2.5.9
   supabase_auth_ui: ^0.4.1
-  camera: ^0.10.5
-  google_mlkit_face_detection: ^0.9.0
+  image_picker: ^1.0.4
+
+  # Lokasi (Web compatible)
   geolocator: ^10.1.0
-  geocoding: ^2.1.1
+
+  # Util
   intl: ^0.18.1
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -26,8 +31,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  assets:
-    - assets/models/
-
-  # No custom fonts needed

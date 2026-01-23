@@ -1,0 +1,9 @@
+{
+  "name": "unilam-apps-web",
+  "version": "1.0.0",
+  "description": "Flutter web app - pre-built for Vercel",
+  "scripts": {
+    "build": "echo 'Build already done - using pre-built files from build/web'"
+  },
+  "private": true
+}

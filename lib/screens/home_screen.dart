@@ -6,6 +6,7 @@ import 'statistik_screen.dart';
 import '../../services/supabase_service.dart';
 import 'absenScreen.dart';
 
+
 // Halaman utama dengan menu berdasarkan role user
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,17 +28,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // Ambil role user dari Supabase
   Future<void> _fetchRole() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      final r = await SupabaseService.getUserRole(user.id);
-      setState(() {
-        role = r;
-        loading = false;
-      });
-    } else {
-      setState(() => loading = false);
-    }
+  final user = Supabase.instance.client.auth.currentUser;
+
+  if (user != null) {
+    final r = await SupabaseService.getUserRole(user.id);
+
+    setState(() {
+      role = r ?? 'user';
+      loading = false;
+    });
+  } else {
+    setState(() => loading = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
