@@ -24,6 +24,7 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
+build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -39,9 +40,6 @@ migrate_working_dir/
 /packages/flutter_tools/.packages
 /packages/flutter_tools/package_config.json
 
-# IMPORTANT: Don't ignore build/web for Vercel deployment
-# /build/web is needed for deployment
-!/build/web/
 
 # Symbolication related
 app.*.symbols
