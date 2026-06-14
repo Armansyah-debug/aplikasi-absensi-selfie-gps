@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_screen.dart';
+import '../home/home_screen.dart';
+import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,24 +17,32 @@ class _LoginScreenState extends State<LoginScreen> {
   String _message = '';
   bool _obscure = true;
 
-  Future<void> _login() async {
-    try {
-      final response =
-          await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+ Future<void> _login() async {
+  try {
+    final response =
+        await Supabase.instance.client.auth.signInWithPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      if (response.user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      setState(() => _message = 'Login gagal');
+    if (response.user != null) {
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     }
+  } on AuthException catch (e) {
+    setState(() {
+      _message = e.message;
+    });
+  } catch (e) {
+    setState(() {
+      _message = e.toString();
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +123,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
+                      Align(
+  alignment: Alignment.centerRight,
+  child: TextButton(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ForgotPasswordScreen(),
+        ),
+      );
+    },
+    child: const Text('Lupa Password?'),
+  ),
+),
+
                       const SizedBox(height: 35),
 
                       SizedBox(
@@ -144,6 +169,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(color: Colors.red),
                         ),
                       ],
+
+                      const SizedBox(height: 20),
+
+Center(
+  child: TextButton(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RegisterScreen(),
+        ),
+      );
+    },
+    child: const Text(
+      'Belum punya akun? Daftar',
+      style: TextStyle(fontSize: 16),
+    ),
+  ),
+),
 
                       const SizedBox(height: 40),
 

@@ -1,0 +1,11 @@
+io.flutter.plugins.flutter_plugin_android_lifecycle-pngs-0 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\flutter_plugin_android_lifecycle\generated\res\pngs\release
+io.flutter.plugins.flutter_plugin_android_lifecycle-resValues-1 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\flutter_plugin_android_lifecycle\generated\res\resValues\release
+io.flutter.plugins.flutter_plugin_android_lifecycle-mergeReleaseResources-2 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\flutter_plugin_android_lifecycle\intermediates\incremental\release\mergeReleaseResources\merged.dir
+io.flutter.plugins.flutter_plugin_android_lifecycle-mergeReleaseResources-3 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\flutter_plugin_android_lifecycle\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+io.flutter.plugins.flutter_plugin_android_lifecycle-merged_res-4 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\flutter_plugin_android_lifecycle\intermediates\merged_res\release
+io.flutter.plugins.flutter_plugin_android_lifecycle-jetified-window-java-1.0.0-beta04-5 C:\Users\HP\.gradle\caches\transforms-3\042294f990a48d6279881d6763c27ed2\transformed\jetified-window-java-1.0.0-beta04\res
+io.flutter.plugins.flutter_plugin_android_lifecycle-core-1.6.0-6 C:\Users\HP\.gradle\caches\transforms-3\8eafb03ea5cc1b980f9959f1c66944c1\transformed\core-1.6.0\res
+io.flutter.plugins.flutter_plugin_android_lifecycle-jetified-window-1.0.0-beta04-7 C:\Users\HP\.gradle\caches\transforms-3\913e96f5341b0286d18be94fd4b66daa\transformed\jetified-window-1.0.0-beta04\res
+io.flutter.plugins.flutter_plugin_android_lifecycle-jetified-annotation-experimental-1.1.0-8 C:\Users\HP\.gradle\caches\transforms-3\a38c4f21bcdf64be3c3095efb4867e85\transformed\jetified-annotation-experimental-1.1.0\res
+io.flutter.plugins.flutter_plugin_android_lifecycle-main-9 C:\Users\HP\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.22\android\src\main\res
+io.flutter.plugins.flutter_plugin_android_lifecycle-release-10 C:\Users\HP\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.22\android\src\release\res

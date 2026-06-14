@@ -1,0 +1,13 @@
+io.flutter.plugins.sharedpreferences.shared_preferences_android-pngs-0 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\shared_preferences_android\generated\res\pngs\release
+io.flutter.plugins.sharedpreferences.shared_preferences_android-resValues-1 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\shared_preferences_android\generated\res\resValues\release
+io.flutter.plugins.sharedpreferences.shared_preferences_android-mergeReleaseResources-2 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\shared_preferences_android\intermediates\incremental\release\mergeReleaseResources\merged.dir
+io.flutter.plugins.sharedpreferences.shared_preferences_android-mergeReleaseResources-3 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\shared_preferences_android\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+io.flutter.plugins.sharedpreferences.shared_preferences_android-merged_res-4 C:\Unilam\Application\backup-flutter\absensi_selfie_lokasi\build\shared_preferences_android\intermediates\merged_res\release
+io.flutter.plugins.sharedpreferences.shared_preferences_android-jetified-window-java-1.0.0-beta04-5 C:\Users\HP\.gradle\caches\transforms-3\042294f990a48d6279881d6763c27ed2\transformed\jetified-window-java-1.0.0-beta04\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-jetified-datastore-1.0.0-6 C:\Users\HP\.gradle\caches\transforms-3\41663ccf2efdef543d56259bcf50192b\transformed\jetified-datastore-1.0.0\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-jetified-datastore-preferences-1.0.0-7 C:\Users\HP\.gradle\caches\transforms-3\7946589fc011a94940ba9a3897413e4d\transformed\jetified-datastore-preferences-1.0.0\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-core-1.6.0-8 C:\Users\HP\.gradle\caches\transforms-3\8eafb03ea5cc1b980f9959f1c66944c1\transformed\core-1.6.0\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-jetified-window-1.0.0-beta04-9 C:\Users\HP\.gradle\caches\transforms-3\913e96f5341b0286d18be94fd4b66daa\transformed\jetified-window-1.0.0-beta04\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-jetified-annotation-experimental-1.1.0-10 C:\Users\HP\.gradle\caches\transforms-3\a38c4f21bcdf64be3c3095efb4867e85\transformed\jetified-annotation-experimental-1.1.0\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-main-11 C:\Users\HP\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.3.2\android\src\main\res
+io.flutter.plugins.sharedpreferences.shared_preferences_android-release-12 C:\Users\HP\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.3.2\android\src\release\res

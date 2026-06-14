@@ -1,5 +1,5 @@
 name: absensi_selfie_lokasi
-description: App Absensi Wajah (Web) + Lokasi GPS + Supabase + TensorFlow.js
+description: App Absensi Mobile + GPS + Selfie + Supabase
 
 publish_to: 'none'
 
@@ -15,14 +15,23 @@ dependencies:
   # Supabase
   supabase_flutter: ^2.5.9
   supabase_auth_ui: ^0.4.1
+
+  # Kamera Mobile
+  camera: ^0.10.6
+
+  # Ambil gambar
   image_picker: ^1.0.4
 
-  # Lokasi (Web compatible)
+  # GPS
   geolocator: ^10.1.0
 
-  # Util
-  intl: ^0.18.1
+  # HTTP
   http: ^1.1.0
+
+  # Format tanggal
+  intl: ^0.18.1
+
+  device_info_plus: ^10.0.0
 
 dev_dependencies:
   flutter_test:

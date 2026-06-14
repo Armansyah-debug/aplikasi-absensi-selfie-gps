@@ -4,15 +4,15 @@ class TfjsService {
   static bool _loaded = false;
 
   static Future<void> loadModel() async {
-    // anggap model berhasil load
     _loaded = true;
   }
 
+  // 🔥 FIX: tetap bool (simple & gak error)
   static Future<bool> predictSelfie(Uint8List imageBytes) async {
     if (!_loaded) return false;
 
-    // SIMULASI validasi wajah
-    // (real TFJS terlalu panjang buat skripsi basic)
+    // SIMULASI FACE CHECK
+    // real ML nanti bisa upgrade ke ML Kit / TFLite
     return imageBytes.isNotEmpty;
   }
 }
