@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/supabase_service.dart';
 import '../../services/tfjs_service.dart';
+import '../main.dart'; // Akses global cameras
 
 class AbsenScreen extends StatefulWidget {
   const AbsenScreen({super.key});
@@ -17,7 +19,8 @@ class AbsenScreen extends StatefulWidget {
 }
 
 class _AbsenScreenState extends State<AbsenScreen> {
-  final ImagePicker _picker = ImagePicker();
+  CameraController? _controller;
+  bool _isCameraReady = false;
 
   Uint8List? _imageBytes;
   bool _loading = false;
@@ -29,25 +32,65 @@ class _AbsenScreenState extends State<AbsenScreen> {
   @override
   void initState() {
     super.initState();
-
-    // 🔥 PENTING: ini yang kamu kurang tadi
+    _initCamera();
     TfjsService.loadModel();
+  }
+
+  Future<void> _initCamera() async {
+    if (cameras.isEmpty) {
+      setState(() => _status = 'Kamera tidak ditemukan');
+      return;
+    }
+
+    final frontCamera = cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
+    );
+
+    _controller = CameraController(
+      frontCamera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
+
+    try {
+      await _controller!.initialize();
+      if (mounted) {
+        setState(() {
+          _isCameraReady = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Camera error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 
   // ================= CAMERA =================
   Future<void> _takePhoto() async {
-    final XFile? photo = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 80,
-    );
+    if (!_isCameraReady || _controller == null) return;
 
-    if (photo == null) return;
+    try {
+      setState(() => _loading = true);
+      final XFile photo = await _controller!.takePicture();
+      final bytes = await photo.readAsBytes();
 
-    _imageBytes = await photo.readAsBytes();
-
-    setState(() {
-      _status = 'Foto siap';
-    });
+      setState(() {
+        _imageBytes = bytes;
+        _status = 'Foto siap';
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _status = 'Gagal ambil foto: $e';
+        _loading = false;
+      });
+    }
   }
 
   // ================= GPS =================
@@ -67,6 +110,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
 
     final pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 15),
     );
 
     if (pos.isMocked) {
@@ -102,43 +146,93 @@ class _AbsenScreenState extends State<AbsenScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw 'User belum login';
 
-      // ================= INPUT =================
-      String nama = '';
-      String npm = '';
+      // ================= CEK PROFIL (AUTOMATION) =================
+      setState(() => _status = 'Mengecek profil...');
+      var profile = await SupabaseService.getUserProfile(user.id);
 
-      final input = await showDialog<Map<String, String>>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Data Absen'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(labelText: 'Nama'),
-                onChanged: (v) => nama = v,
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: 'NPM'),
-                onChanged: (v) => npm = v,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, {'n': nama, 'p': npm}),
-              child: const Text('Absen'),
-            ),
-          ],
-        ),
-      );
+      String? nama = profile?['nama'];
+      String? npm = profile?['npm'];
 
-      if (input == null || input['n']!.isEmpty || input['p']!.isEmpty) {
-        throw 'Data tidak boleh kosong';
+      // Jika data profil kosong, minta user melengkapi (HANYA SEKALI)
+      if (nama == null || npm == null || nama.isEmpty || npm.isEmpty) {
+        final input = await showDialog<Map<String, String>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            String tempNama = '';
+            String tempNpm = '';
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text('Lengkapi Profil'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Data ini hanya perlu diisi sekali untuk mempermudah absensi selanjutnya.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Nama Lengkap',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (v) => tempNama = v,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'NPM / ID',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (v) => tempNpm = v,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (tempNama.isNotEmpty && tempNpm.isNotEmpty) {
+                      Navigator.pop(context, {'n': tempNama, 'p': tempNpm});
+                    }
+                  },
+                  child: const Text('Simpan & Lanjut'),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (input == null) throw 'Lengkapi profil dulu';
+
+        nama = input['n'];
+        npm = input['p'];
+
+        // Simpan ke database agar tidak diminta lagi
+        await SupabaseService.updateProfile(
+          userId: user.id,
+          nama: nama!,
+          npm: npm!,
+        );
       }
 
       // ================= ANTI SPAM =================
@@ -164,32 +258,49 @@ class _AbsenScreenState extends State<AbsenScreen> {
 
       final photoPath = await SupabaseService.uploadSelfieWeb(
         _imageBytes!,
-        input['p']!,
+        npm!,
       );
 
       if (photoPath == null) throw 'Upload gagal';
 
-      final currentTime = DateTime.now();
+      // ================= CEK SESI ABSENSI =================
+      final sesi = await Supabase.instance.client
+          .from('sesi_absensi')
+          .select()
+          .eq('is_open', true)
+          .maybeSingle();
+
+      if (sesi == null) {
+        throw 'Belum ada sesi absensi yang dibuka';
+      }
+
       await Supabase.instance.client.from('data_absensi').insert({
-        'nama': input['n']!,
-        'npm': input['p']!,
+        'nama': nama,
+        'npm': npm,
         'lokasi': '${pos.latitude},${pos.longitude}',
         'alamat': 'Koordinat: ${pos.latitude},${pos.longitude}',
         'foto_path': photoPath,
         'status': 'Hadir',
         'jenis': 'Hadir',
         'user_id': user.id,
-        'waktu': now.toIso8601String(),
+        'waktu': now.toUtc().toIso8601String(),
         'is_mocked': pos.isMocked,
+        'sesi_id': sesi['id'],
       });
 
       _lastAbsen = now;
 
-      setState(() => _status = 'Absen berhasil ✅');
+      setState(() {
+        _status = 'Absen berhasil ✅';
+        _imageBytes = null;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Absen berhasil')),
+          const SnackBar(
+            content: Text('Absen berhasil'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
@@ -221,7 +332,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: Text(_status),
+              child: Text(_status, style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
 
             const SizedBox(height: 16),
@@ -233,7 +344,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.black,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -247,12 +358,11 @@ class _AbsenScreenState extends State<AbsenScreen> {
                           _imageBytes!,
                           fit: BoxFit.cover,
                         )
-                      : const Center(
-                          child: Text(
-                            'Belum ada foto',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
+                      : (_isCameraReady
+                          ? CameraPreview(_controller!)
+                          : const Center(
+                              child: CircularProgressIndicator(color: Colors.white),
+                            )),
                 ),
               ),
             ),
@@ -290,7 +400,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _takePhoto,
+                    onPressed: _imageBytes != null ? () => setState(() => _imageBytes = null) : _takePhoto,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
@@ -301,13 +411,13 @@ class _AbsenScreenState extends State<AbsenScreen> {
                         side: const BorderSide(color: Colors.grey),
                       ),
                     ),
-                    child: const Text("Ambil Foto"),
+                    child: Text(_imageBytes != null ? "Ulangi Foto" : "Ambil Foto"),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _absen,
+                    onPressed: _loading || _imageBytes == null ? null : _absen,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF007AFF),
                       padding: const EdgeInsets.all(14),
@@ -317,7 +427,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
                     ),
                     child: Text(
                       _loading ? "..." : "Absen",
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -329,3 +439,4 @@ class _AbsenScreenState extends State<AbsenScreen> {
     );
   }
 }
+

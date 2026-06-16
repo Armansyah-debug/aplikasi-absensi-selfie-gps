@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/supabase_service.dart';
 
 const Color primaryBlue = Color(0xFF007AFF);
@@ -32,6 +32,89 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
   Uint8List? _imageBytes;
 
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
+
+  bool _loadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final profile = await SupabaseService.getUserProfile(user.id);
+    if (profile != null) {
+      setState(() {
+        name = profile['nama'] ?? '';
+        npm = profile['npm'] ?? '';
+        _loadingProfile = false;
+      });
+
+      if (name.isEmpty || npm.isEmpty) {
+        _promptProfile(user.id);
+      }
+    } else {
+      setState(() => _loadingProfile = false);
+      _promptProfile(user.id);
+    }
+  }
+
+  Future<void> _promptProfile(String userId) async {
+    final input = await showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        String tempNama = '';
+        String tempNpm = '';
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Lengkapi Profil'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Data profil diperlukan untuk pengajuan.'),
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(labelText: 'Nama Lengkap'),
+                onChanged: (v) => tempNama = v,
+              ),
+              TextField(
+                decoration: const InputDecoration(labelText: 'NPM / ID'),
+                onChanged: (v) => tempNpm = v,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                if (tempNama.isNotEmpty && tempNpm.isNotEmpty) {
+                  Navigator.pop(context, {'n': tempNama, 'p': tempNpm});
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (input != null) {
+      await SupabaseService.updateProfile(
+        userId: userId,
+        nama: input['n']!,
+        npm: input['p']!,
+      );
+      setState(() {
+        name = input['n']!;
+        npm = input['p']!;
+      });
+    } else {
+      if (mounted) Navigator.pop(context);
+    }
+  }
 
   // ================= DATE =================
   Future<void> _selectDate(bool isMulai) async {
@@ -186,7 +269,7 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ================= NAMA & NPM =================
+          // ================= NAMA & NPM (AUTOMATED) =================
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -200,35 +283,43 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: "Nama",
-                    filled: true,
-                    fillColor: const Color(0xFFF7F8FC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
+            child: _loadingProfile
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    children: [
+                      TextFormField(
+                        key: Key('name_$name'),
+                        initialValue: name,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: "Nama (Otomatis)",
+                          filled: true,
+                          fillColor: const Color(0xFFF7F8FC),
+                          prefixIcon: const Icon(Icons.person_outline, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        key: Key('npm_$npm'),
+                        initialValue: npm,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: "NPM (Otomatis)",
+                          filled: true,
+                          fillColor: const Color(0xFFF7F8FC),
+                          prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onChanged: (v) => name = v,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: "NPM",
-                    filled: true,
-                    fillColor: const Color(0xFFF7F8FC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onChanged: (v) => npm = v,
-                ),
-              ],
-            ),
           ),
 
           const SizedBox(height: 14),

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../absensi/riwayat_screen.dart';
 import '../absensi/statistik_screen.dart';
-
-
+import 'kelola_sesi_screen.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
@@ -11,7 +10,6 @@ class AdminScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
-
       appBar: AppBar(
         title: const Text(
           'Dashboard Admin',
@@ -19,11 +17,9 @@ class AdminScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.blue.shade700,
       ),
-
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-
           Card(
             child: ListTile(
               leading: const Icon(Icons.list_alt),
@@ -39,9 +35,7 @@ class AdminScreen extends StatelessWidget {
               },
             ),
           ),
-
           const SizedBox(height: 12),
-
           Card(
             child: ListTile(
               leading: const Icon(Icons.bar_chart),
@@ -57,7 +51,21 @@ class AdminScreen extends StatelessWidget {
               },
             ),
           ),
-
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.schedule),
+              title: const Text('Kelola Sesi Absensi'),
+              subtitle: const Text('Buka / Tutup absensi'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const KelolaSesiScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

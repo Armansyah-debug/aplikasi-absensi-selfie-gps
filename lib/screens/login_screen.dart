@@ -16,227 +16,251 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   String _message = '';
   bool _obscure = true;
+  bool _isLoading = false;
 
- Future<void> _login() async {
-  try {
-    final response =
-        await Supabase.instance.client.auth.signInWithPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _message = '';
+    });
 
-    if (response.user != null) {
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+    try {
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
+
+      if (response.user != null) {
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } on AuthException catch (e) {
+      setState(() => _message = e.message);
+    } catch (e) {
+      setState(() => _message = e.toString());
+    } finally {
+      setState(() => _isLoading = false);
     }
-  } on AuthException catch (e) {
-    setState(() {
-      _message = e.message;
-    });
-  } catch (e) {
-    setState(() {
-      _message = e.toString();
-    });
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.blue.shade700,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-
-            /// HEADER
-            Column(
-              children: const [
-                Icon(Icons.send_rounded, color: Colors.white, size: 42),
-                SizedBox(height: 10),
-                Text(
-                  'Absensi Online',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 40),
+              const Icon(
+                Icons.face_retouching_natural_rounded,
+                size: 64,
+                color: Color(0xFF007AFF),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                "Selamat Datang",
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            /// CARD LOGIN
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(36),
-                    topRight: Radius.circular(36),
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Silakan login untuk mulai melakukan absensi",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade600,
                 ),
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Login',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                        ),
+              ),
+              const SizedBox(height: 48),
+
+              // ================= EMAIL =================
+              _buildLabel("Email"),
+              _buildTextField(
+                controller: _emailController,
+                hint: "Masukkan email",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 20),
+
+              // ================= PASSWORD =================
+              _buildLabel("Password"),
+              _buildTextField(
+                controller: _passwordController,
+                hint: "Masukkan password",
+                icon: Icons.lock_outline_rounded,
+                isPassword: true,
+                obscure: _obscure,
+                onToggleObscure: () => setState(() => _obscure = !_obscure),
+              ),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
                       ),
-                      const SizedBox(height: 30),
-
-                      _inputField(
-                        controller: _emailController,
-                        hint: 'Email',
-                        icon: Icons.email_outlined,
-                        obscure: false,
-                      ),
-                      const SizedBox(height: 20),
-
-                      _inputField(
-                        controller: _passwordController,
-                        hint: 'Password',
-                        icon: Icons.lock_outline,
-                        obscure: _obscure,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscure
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () {
-                            setState(() => _obscure = !_obscure);
-                          },
-                        ),
-                      ),
-
-                      Align(
-  alignment: Alignment.centerRight,
-  child: TextButton(
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const ForgotPasswordScreen(),
-        ),
-      );
-    },
-    child: const Text('Lupa Password?'),
-  ),
-),
-
-                      const SizedBox(height: 35),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      if (_message.isNotEmpty) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          _message,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ],
-
-                      const SizedBox(height: 20),
-
-Center(
-  child: TextButton(
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const RegisterScreen(),
-        ),
-      );
-    },
-    child: const Text(
-      'Belum punya akun? Daftar',
-      style: TextStyle(fontSize: 16),
-    ),
-  ),
-),
-
-                      const SizedBox(height: 40),
-
-                      const Center(
-                        child: Text(
-                          'Absensi Online Berbasis GPS',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    ],
+                    );
+                  },
+                  child: const Text(
+                    "Lupa Password?",
+                    style: TextStyle(
+                      color: Color(0xFF007AFF),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 32),
+
+              // ================= LOGIN BUTTON =================
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF007AFF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _isLoading ? null : _login,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Masuk Sekarang",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+              if (_message.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Center(
+                  child: Text(
+                    _message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 32),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Belum punya akun? ",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Daftar",
+                      style: TextStyle(
+                        color: Color(0xFF007AFF),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 60),
+
+              const Center(
+                child: Text(
+                  'Absensi Online Berbasis GPS',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _inputField({
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
-    required bool obscure,
-    Widget? suffix,
+    bool isPassword = false,
+    bool obscure = false,
+    VoidCallback? onToggleObscure,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ],
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: TextField(
         controller: controller,
         obscureText: obscure,
         decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    obscure ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey.shade400,
+                    size: 20,
+                  ),
+                  onPressed: onToggleObscure,
+                )
+              : null,
           hintText: hint,
-          prefixIcon: Icon(icon, color: Colors.blue.shade700),
-          suffixIcon: suffix,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
           border: InputBorder.none,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );

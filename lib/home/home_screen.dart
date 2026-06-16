@@ -7,6 +7,8 @@ import '../absensi/riwayat_screen.dart';
 import '../absensi/statistik_screen.dart';
 import '../absensi/absenScreen.dart';
 import '../../services/supabase_service.dart';
+import '../screens/login_screen.dart';
+import '../admin/kelola_sesi_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,12 +54,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LoginScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
@@ -68,20 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
                   if (!isAdmin) _attendanceCard(),
-
                   const SizedBox(height: 16),
-
-                  ...(isAdmin
-                      ? _adminMenu(context)
-                      : _userMenu(context)),
+                  ...(isAdmin ? _adminMenu(context) : _userMenu(context)),
                 ],
               ),
             ),
@@ -143,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 14),
                   const Divider(),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -229,6 +245,18 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const StatistikScreen()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _menuCard(
+          icon: Icons.schedule_rounded,
+          title: "Kelola Sesi",
+          subtitle: "Buka / Tutup absensi",
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const KelolaSesiScreen(),
+            ),
           ),
         ),
       ];

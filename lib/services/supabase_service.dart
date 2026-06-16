@@ -6,7 +6,7 @@ class SupabaseService {
   static final _supabase = Supabase.instance.client;
 
   // =====================================================
-  // ROLE
+  // PROFILE
   // =====================================================
   static Future<String?> getUserRole(String userId) async {
     try {
@@ -21,6 +21,31 @@ class SupabaseService {
       debugPrint('ROLE ERROR: $e');
       return null;
     }
+  }
+
+  static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    try {
+      final res = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      return res;
+    } catch (e) {
+      debugPrint('GET PROFILE ERROR: $e');
+      return null;
+    }
+  }
+
+  static Future<void> updateProfile({
+    required String userId,
+    required String nama,
+    required String npm,
+  }) async {
+    await _supabase.from('profiles').update({
+      'nama': nama,
+      'npm': npm,
+    }).eq('id', userId);
   }
 
   // =====================================================
@@ -78,7 +103,7 @@ class SupabaseService {
       'jenis': 'Hadir',
       'status': 'Hadir',
       'user_id': userId,
-      'waktu': DateTime.now().toIso8601String(),
+      'waktu': DateTime.now().toUtc().toIso8601String(),
       'is_mocked': isMocked,
     });
   }
@@ -108,7 +133,7 @@ class SupabaseService {
       'user_id': userId,
 
       // biar konsisten untuk filter tanggal
-      'waktu': tanggalMulai.toIso8601String(),
+      'waktu': tanggalMulai.toUtc().toIso8601String(),
     });
   }
 
