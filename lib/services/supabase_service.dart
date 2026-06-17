@@ -158,6 +158,104 @@ class SupabaseService {
         .order('waktu', ascending: false);
   }
 
+  static Future<List<Map<String, dynamic>>> getDosenHistoryRaw(
+      String dosenId) async {
+    try {
+      print('DOSEN ID: $dosenId');
+
+      // 1. Dapatkan daftar MK milik dosen ini
+      final mkRes = await _supabase
+          .from('mata_kuliah')
+          .select('id')
+          .eq('dosen_id', dosenId);
+      final mkIds = List<dynamic>.from(mkRes.map((e) => e['id']));
+      print('MK IDS: $mkIds');
+
+      if (mkIds.isEmpty) {
+        print('DEBUG: Dosen tidak memiliki mata kuliah.');
+        return [];
+      }
+
+      // 2. Dapatkan seluruh ID Sesi dari MK-MK tersebut
+      final sesiRes = await _supabase
+          .from('sesi_absensi')
+          .select('id')
+          .filter('mata_kuliah_id', 'in', mkIds);
+      final sesiIds = List<dynamic>.from(sesiRes.map((e) => e['id']));
+      print('SESI IDS: $sesiIds');
+
+      if (sesiIds.isEmpty) {
+        print('DEBUG: Tidak ada sesi ditemukan untuk MK tersebut.');
+        return [];
+      }
+
+      // 3. Ambil data absensi mahasiswa yang terhubung ke ID Sesi milik dosen
+      final res = await _supabase
+          .from('data_absensi')
+          .select('*')
+          .inFilter('sesi_id', sesiIds)
+          .order('waktu', ascending: false);
+
+      print('MK IDS: $mkIds');
+      print('SESI IDS: $sesiIds');
+      print('ABSENSI COUNT: ${res.length}');
+      // print('ABSENSI DATA: $res'); // Dikomentari agar log tidak terlalu panjang
+
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      print('DEBUG getDosenHistoryRaw error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getHistoryRaw(
+      String userId) async {
+    try {
+      final res = await _supabase
+          .from('data_absensi')
+          .select('*')
+          .eq('user_id', userId)
+          .order('waktu', ascending: false);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET HISTORY RAW ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllHistoryRaw() async {
+    try {
+      final res = await _supabase
+          .from('data_absensi')
+          .select('*')
+          .order('waktu', ascending: false);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET ALL HISTORY RAW ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getSesiList() async {
+    try {
+      final res = await _supabase.from('sesi_absensi').select('id, mata_kuliah_id');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET SESI LIST ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllMK() async {
+    try {
+      final res = await _supabase.from('mata_kuliah').select('id, nama_mk');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET ALL MK ERROR: $e');
+      return [];
+    }
+  }
+
   // =====================================================
   // FOTO URL (FIX AMAN)
   // =====================================================
@@ -169,6 +267,76 @@ class SupabaseService {
     return _supabase.storage
         .from(bucketName)
         .getPublicUrl(path);
+  }
+
+  // =====================================================
+  // AKADEMIK & SESI
+  // =====================================================
+  static Future<List<Map<String, dynamic>>> getMataKuliah({String? dosenId}) async {
+    try {
+      var query = _supabase.from('mata_kuliah').select();
+
+      if (dosenId != null) {
+        query = query.eq('dosen_id', dosenId);
+      }
+
+      final res = await query.order('nama_mk');
+      print('DEBUG getMataKuliah result: $res');
+      print('DEBUG getMataKuliah count: ${res.length}');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      print('DEBUG getMataKuliah error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getKelasByMK(String mkId) async {
+    try {
+      final res = await _supabase
+          .from('kelas_perkuliahan')
+          .select()
+          .eq('mk_id', mkId)
+          .order('nama_kelas');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET KELAS ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getPertemuanByKelas(
+      String kelasId) async {
+    try {
+      final res = await _supabase
+          .from('pertemuan')
+          .select()
+          .eq('kelas_id', kelasId)
+          .order('pertemuan_ke');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET PERTEMUAN ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<void> createSesiAbsensi({
+    String? pertemuanId,
+    required String mkId,
+    int radius = 50,
+  }) async {
+    final now = DateTime.now();
+    final Map<String, dynamic> data = {
+      'mata_kuliah_id': mkId,
+      'is_open': true,
+      'radius_meter': radius,
+      'tanggal': now.toIso8601String().split('T')[0],
+    };
+
+    if (pertemuanId != null) {
+      data['pertemuan_id'] = pertemuanId;
+    }
+
+    await _supabase.from('sesi_absensi').insert(data);
   }
 
   // =====================================================

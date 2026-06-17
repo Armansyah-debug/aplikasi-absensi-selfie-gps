@@ -45,6 +45,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isAdmin = role == 'admin';
+    final isDosen = role == 'dosen';
+    final isMahasiswa = role == 'mahasiswa' || role == 'user';
+
+    String getTitle() {
+      if (isAdmin) return "Dashboard Admin";
+      if (isDosen) return "Dashboard Dosen";
+      return "Absensi";
+    }
+
+    List<Widget> getMenus() {
+      if (isAdmin) return _adminMenu(context);
+      if (isDosen) return _dosenMenu(context);
+      return _userMenu(context);
+    }
 
     if (loading) {
       return const Scaffold(
@@ -84,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                isAdmin ? "Dashboard Admin" : "Absensi",
+                getTitle(),
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -96,9 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  if (!isAdmin) _attendanceCard(),
+                  if (isMahasiswa) _attendanceCard(),
                   const SizedBox(height: 16),
-                  ...(isAdmin ? _adminMenu(context) : _userMenu(context)),
+                  ...getMenus(),
                 ],
               ),
             ),
@@ -212,6 +226,31 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const IzinCutiScreen()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _menuCard(
+          icon: Icons.history_rounded,
+          title: "Riwayat",
+          subtitle: "Lihat data absensi",
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const RiwayatScreen()),
+          ),
+        ),
+      ];
+
+  // ================= DOSEN MENU =================
+  List<Widget> _dosenMenu(BuildContext context) => [
+        _menuCard(
+          icon: Icons.schedule_rounded,
+          title: "Kelola Sesi",
+          subtitle: "Buka / Tutup absensi",
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const KelolaSesiScreen(),
+            ),
           ),
         ),
         const SizedBox(height: 12),
