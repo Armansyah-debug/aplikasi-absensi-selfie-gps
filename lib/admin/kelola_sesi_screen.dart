@@ -12,18 +12,15 @@ class KelolaSesiScreen extends StatefulWidget {
 class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
   final supabase = Supabase.instance.client;
 
-  // New State for Academic Dropdowns
+  // State for MK Dropdown
   List<dynamic> listMK = [];
-  List<dynamic> listKelas = [];
-  List<dynamic> listPertemuan = [];
-
   String? selectedMK;
-  String? selectedKelas;
-  String? selectedPertemuan;
+
+  // State for new fields
+  final _materiController = TextEditingController();
+  int? _selectedPertemuanKe;
 
   bool loadingMK = false;
-  bool loadingKelas = false;
-  bool loadingPertemuan = false;
   bool loadingSubmit = false;
 
   @override
@@ -32,24 +29,23 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
     _fetchMK();
   }
 
+  @override
+  void dispose() {
+    _materiController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchMK() async {
     setState(() => loadingMK = true);
-    print('DEBUG _fetchMK dipanggil');
-
     final user = supabase.auth.currentUser;
     if (user != null) {
       final role = await SupabaseService.getUserRole(user.id);
-      print('ROLE USER: $role');
-      print('USER ID: ${user.id}');
-
       List<Map<String, dynamic>> data;
       if (role == 'dosen') {
         data = await SupabaseService.getMataKuliah(dosenId: user.id);
       } else {
         data = await SupabaseService.getMataKuliah();
       }
-
-      print('MK COUNT: ${data.length}');
       setState(() {
         listMK = data;
         loadingMK = false;
@@ -57,34 +53,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
     } else {
       setState(() => loadingMK = false);
     }
-  }
-
-  Future<void> _fetchKelas(String mkId) async {
-    setState(() {
-      loadingKelas = true;
-      listKelas = [];
-      selectedKelas = null;
-      listPertemuan = [];
-      selectedPertemuan = null;
-    });
-    final data = await SupabaseService.getKelasByMK(mkId);
-    setState(() {
-      listKelas = data;
-      loadingKelas = false;
-    });
-  }
-
-  Future<void> _fetchPertemuan(String kelasId) async {
-    setState(() {
-      loadingPertemuan = true;
-      listPertemuan = [];
-      selectedPertemuan = null;
-    });
-    final data = await SupabaseService.getPertemuanByKelas(kelasId);
-    setState(() {
-      listPertemuan = data;
-      loadingPertemuan = false;
-    });
   }
 
   Future<void> _handleBukaSesiBaru() async {
@@ -97,12 +65,10 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
 
     setState(() => loadingSubmit = true);
     try {
-      // 1. Dapatkan info MK yang dipilih (jurusan & semester)
       final mk = listMK.firstWhere((e) => e['id'].toString() == selectedMK);
       final jurusan = mk['jurusan'];
       final semester = mk['semester'];
 
-      // 2. Cek apakah sudah ada sesi aktif untuk JURUSAN & SEMESTER yang sama
       final existingSesi = await supabase
           .from('sesi_absensi')
           .select('id, mata_kuliah!inner(jurusan, semester)')
@@ -117,7 +83,8 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
 
       await SupabaseService.createSesiAbsensi(
         mkId: selectedMK!,
-        pertemuanId: selectedPertemuan, // Bisa null untuk saat ini
+        pertemuan_ke: _selectedPertemuanKe,
+        materi: _materiController.text.isNotEmpty ? _materiController.text : null,
       );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sesi absensi baru berhasil dibuka')),
@@ -125,10 +92,8 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
       // Reset selections
       setState(() {
         selectedMK = null;
-        selectedKelas = null;
-        selectedPertemuan = null;
-        listKelas = [];
-        listPertemuan = [];
+        _selectedPertemuanKe = null;
+        _materiController.clear();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,73 +105,40 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
   }
 
   Future<List<dynamic>> getSesi() async {
-    print('GET SESI DIPANGGIL');
-
     final user = supabase.auth.currentUser;
     if (user == null) return [];
 
     final role = await SupabaseService.getUserRole(user.id);
-    print('ROLE USER: $role');
-
-    var query = supabase.from('sesi_absensi').select();
+    var query = supabase.from('sesi_absensi').select('*, mata_kuliah(*)');
 
     if (role == 'dosen') {
-      final mkIds = listMK.map((e) => e['id']).toList();
-      print('MK DOSEN: $mkIds');
-      // Menggunakan filter generik 'in' untuk kompatibilitas versi
-      query = query.filter('mata_kuliah_id', 'in', mkIds);
+      final mkData = await SupabaseService.getMataKuliah(dosenId: user.id);
+      final mkIds = mkData.map((e) => e['id']).toList();
+      if (mkIds.isNotEmpty) {
+         query = query.filter('mata_kuliah_id', 'in', mkIds);
+      } else {
+        return [];
+      }
     }
 
-    final data = await query;
-    print('SESI COUNT: ${data.length}');
-
+    final data = await query.order('tanggal', ascending: false);
     return data;
-  }
-
-  Future<void> bukaSesi(int id) async {
-    await supabase.from('sesi_absensi').update({'is_open': true}).eq('id', id);
-
-    setState(() {});
   }
 
   Future<void> tutupSesi(int id) async {
     await supabase.from('sesi_absensi').update({'is_open': false}).eq('id', id);
-
     setState(() {});
-  }
-
-  String getNamaMK(int id) {
-    switch (id) {
-      case 1:
-        return 'Pengolahan Citra Digital';
-      case 2:
-        return 'Pendidikan Akhlakul Karimah';
-      case 3:
-        return 'Technopreneurship';
-      case 4:
-        return 'Manajemen Proyek Perangkat Lunak';
-      case 5:
-        return 'Proyek Perangkat Lunak';
-      case 6:
-        return 'Big Data';
-      default:
-        return 'Mata Kuliah';
-    }
   }
 
   String _formatTanggal(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
-      final parts = dateStr.split('-');
-      if (parts.length != 3) return dateStr;
-      final year = parts[0];
-      final month = parts[1];
-      final day = parts[2];
+      final date = DateTime.parse(dateStr);
       const months = [
         'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
         'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
       ];
-      return '$day ${months[int.parse(month) - 1]} $year';
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
     } catch (e) {
       return dateStr;
     }
@@ -232,7 +164,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
       ),
       body: Column(
         children: [
-          // ================= FORM BUKA SESI BARU =================
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
@@ -260,8 +191,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // DROPDOWN MATA KULIAH
                   DropdownButtonFormField<String>(
                     value: selectedMK,
                     hint: const Text('Pilih Mata Kuliah'),
@@ -275,7 +204,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                     onChanged: (val) {
                       if (val != null) {
                         setState(() => selectedMK = val);
-                        // _fetchKelas(val); // Nonaktifkan untuk sementara
                       }
                     },
                     decoration: InputDecoration(
@@ -285,66 +213,52 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                       ),
                     ),
                   ),
-                  // const SizedBox(height: 12),
-
-                  // DROPDOWN KELAS (DISEMBUNYIKAN SEMENTARA)
-                  /*
-                  DropdownButtonFormField<String>(
-                    value: selectedKelas,
-                    hint: Text(loadingKelas ? 'Memuat...' : 'Pilih Kelas'),
-                    isExpanded: true,
-                    items: listKelas.map((e) {
-                      return DropdownMenuItem<String>(
-                        value: e['id'].toString(),
-                        child: Text(e['nama_kelas'] ?? '-'),
-                      );
-                    }).toList(),
-                    onChanged: selectedMK == null
-                        ? null
-                        : (val) {
-                            if (val != null) {
-                              setState(() => selectedKelas = val);
-                              _fetchPertemuan(val);
-                            }
-                          },
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 12),
-                  */
-
-                  // DROPDOWN PERTEMUAN (DISEMBUNYIKAN SEMENTARA)
-                  /*
-                  DropdownButtonFormField<String>(
-                    value: selectedPertemuan,
-                    hint:
-                        Text(loadingPertemuan ? 'Memuat...' : 'Pilih Pertemuan'),
-                    isExpanded: true,
-                    items: listPertemuan.map((e) {
-                      return DropdownMenuItem<String>(
-                        value: e['id'].toString(),
-                        child: Text('Pertemuan Ke-${e['pertemuan_ke']}'),
-                      );
-                    }).toList(),
-                    onChanged: selectedKelas == null
-                        ? null
-                        : (val) {
-                            setState(() => selectedPertemuan = val);
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: DropdownButtonFormField<int>(
+                          value: _selectedPertemuanKe,
+                          hint: const Text('Ke-'),
+                          items: List.generate(15, (index) => index + 1)
+                              .map((e) => DropdownMenuItem<int>(
+                                    value: e,
+                                    child: Text('$e'),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedPertemuanKe = value;
+                            });
                           },
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                          decoration: InputDecoration(
+                            labelText: 'Pertemuan',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 5,
+                        child: TextFormField(
+                          controller: _materiController,
+                          decoration: InputDecoration(
+                            labelText: 'Materi Perkuliahan',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  */
                   const SizedBox(height: 20),
-
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -376,8 +290,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
               ),
             ),
           ),
-
-          // ================= LIST SESI (EXISTING) =================
           Expanded(
             child: FutureBuilder(
               future: getSesi(),
@@ -397,8 +309,6 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                 }
 
                 final data = snapshot.data as List<dynamic>;
-
-                // FILTER HANYA SESI AKTIF DI TINGKAT UI
                 final activeSesi =
                     data.where((e) => e['is_open'] == true).toList();
 
@@ -425,11 +335,10 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                   itemBuilder: (context, index) {
                     final sesi = activeSesi[index];
                     final isOpen = sesi['is_open'] ?? false;
-                    final mkData = listMK.firstWhere(
-                      (e) => e['id'] == sesi['mata_kuliah_id'],
-                      orElse: () => <String, dynamic>{},
-                    );
+                    final mkData = sesi['mata_kuliah'] ?? {};
                     final mkName = mkData['nama_mk'] ?? 'Mata Kuliah';
+                    final pertemuanKe = sesi['pertemuan_ke'];
+                    final materi = sesi['materi'];
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -501,24 +410,36 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                  if(pertemuanKe != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Pertemuan Ke-$pertemuanKe',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                  if(materi != null && materi.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Materi: $materi',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      _infoIcon(Icons.location_on_rounded,
-                                          'Radius: ${sesi['radius_meter']}m'),
-                                      const SizedBox(width: 16),
-                                      _infoIcon(Icons.numbers_rounded,
-                                          'ID: ${sesi['id']}'),
-                                    ],
-                                  ),
+                                  _infoIcon(Icons.location_on_rounded,
+                                      'Radius: ${sesi['radius_meter']}m'),
                                   const SizedBox(height: 20),
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: isOpen
-                                            ? const Color(0xFFFF3B30)
-                                            : const Color(0xFF007AFF),
+                                        backgroundColor: const Color(0xFFFF3B30),
                                         foregroundColor: Colors.white,
                                         elevation: 0,
                                         padding: const EdgeInsets.symmetric(
@@ -529,17 +450,11 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                                         ),
                                       ),
                                       onPressed: () async {
-                                        if (isOpen) {
-                                          await tutupSesi(sesi['id']);
-                                        } else {
-                                          await bukaSesi(sesi['id']);
-                                        }
+                                        await tutupSesi(sesi['id']);
                                       },
-                                      child: Text(
-                                        isOpen
-                                            ? 'Tutup Absensi'
-                                            : 'Buka Absensi',
-                                        style: const TextStyle(
+                                      child: const Text(
+                                        'Tutup Absensi',
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),

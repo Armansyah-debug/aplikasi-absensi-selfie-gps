@@ -396,6 +396,8 @@ class _AbsenScreenState extends State<AbsenScreen> {
     final namaMK = mk['nama_mk'] ?? '-';
     final jurusan = mk['jurusan'] ?? '-';
     final semester = mk['semester'] ?? '-';
+    final pertemuanKe = _activeSesi!['pertemuan_ke']; // Ambil pertemuan_ke
+    final materi = _activeSesi!['materi']; // Ambil materi
 
     return Container(
       width: double.infinity,
@@ -439,6 +441,46 @@ class _AbsenScreenState extends State<AbsenScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 10), // Tambah spasi
+
+          // PERTEMUAN KE
+          if (pertemuanKe != null)
+            Row(
+              children: [
+                const Icon(Icons.numbers_rounded, color: Colors.grey, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  "Pertemuan Ke-$pertemuanKe",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          
+          // MATERI
+          if (materi != null && materi.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0), // Spasi atas untuk materi
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, color: Colors.grey, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      materi,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

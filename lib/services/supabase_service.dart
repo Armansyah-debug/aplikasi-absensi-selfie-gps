@@ -367,8 +367,9 @@ class SupabaseService {
   }
 
   static Future<void> createSesiAbsensi({
-    String? pertemuanId,
     required String mkId,
+    int? pertemuan_ke,
+    String? materi,
     int radius = 50,
   }) async {
     final now = DateTime.now();
@@ -377,11 +378,9 @@ class SupabaseService {
       'is_open': true,
       'radius_meter': radius,
       'tanggal': now.toIso8601String().split('T')[0],
+      'pertemuan_ke': pertemuan_ke,
+      'materi': materi,
     };
-
-    if (pertemuanId != null) {
-      data['pertemuan_id'] = pertemuanId;
-    }
 
     await _supabase.from('sesi_absensi').insert(data);
   }
