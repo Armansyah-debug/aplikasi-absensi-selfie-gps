@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:camera/camera.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -27,13 +28,50 @@ class _AbsenScreenState extends State<AbsenScreen> {
   String _status = 'Siap absen';
 
   DateTime? _lastAbsen;
+  Map<String, dynamic>? _activeSesi;
+  bool _fetchingSesi = true;
 
   // ================= INIT =================
   @override
   void initState() {
     super.initState();
     _initCamera();
+    _loadInitialData();
     TfjsService.loadModel();
+  }
+
+  Future<void> _loadInitialData() async {
+    await _checkActiveSesi();
+  }
+
+  Future<void> _checkActiveSesi() async {
+    setState(() => _fetchingSesi = true);
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final profile = await SupabaseService.getUserProfile(user.id);
+      final userJurusan = profile?['jurusan'];
+      final userSemester = profile?['semester'];
+
+      if (userJurusan != null && userSemester != null) {
+        final sesi = await Supabase.instance.client
+            .from('sesi_absensi')
+            .select('*, mata_kuliah!inner(*)')
+            .eq('is_open', true)
+            .eq('mata_kuliah.jurusan', userJurusan)
+            .eq('mata_kuliah.semester', userSemester)
+            .maybeSingle();
+
+        setState(() {
+          _activeSesi = sesi;
+        });
+      }
+    } catch (e) {
+      debugPrint('Check Sesi Error: $e');
+    } finally {
+      setState(() => _fetchingSesi = false);
+    }
   }
 
   Future<void> _initCamera() async {
@@ -146,161 +184,78 @@ class _AbsenScreenState extends State<AbsenScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw 'User belum login';
 
-      // ================= CEK PROFIL (AUTOMATION) =================
+      // ================= CEK SESI ABSENSI =================
+      if (_activeSesi == null) throw 'Belum ada sesi absensi aktif';
+
+      // ================= VALIDASI PROFIL =================
       setState(() => _status = 'Mengecek profil...');
       var profile = await SupabaseService.getUserProfile(user.id);
-
       String? nama = profile?['nama'];
       String? npm = profile?['npm'];
 
-      // Jika data profil kosong, minta user melengkapi (HANYA SEKALI)
       if (nama == null || npm == null || nama.isEmpty || npm.isEmpty) {
-        final input = await showDialog<Map<String, String>>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            String tempNama = '';
-            String tempNpm = '';
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: const Text('Lengkapi Profil'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Data ini hanya perlu diisi sekali untuk mempermudah absensi selanjutnya.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Nama Lengkap',
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onChanged: (v) => tempNama = v,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: 'NPM / ID',
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onChanged: (v) => tempNpm = v,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () {
-                    if (tempNama.isNotEmpty && tempNpm.isNotEmpty) {
-                      Navigator.pop(context, {'n': tempNama, 'p': tempNpm});
-                    }
-                  },
-                  child: const Text('Simpan & Lanjut'),
-                ),
-              ],
-            );
-          },
-        );
-
-        if (input == null) throw 'Lengkapi profil dulu';
-
-        nama = input['n'];
-        npm = input['p'];
-
-        // Simpan ke database agar tidak diminta lagi
-        await SupabaseService.updateProfile(
-          userId: user.id,
-          nama: nama!,
-          npm: npm!,
-        );
+        throw 'Lengkapi profil (Nama/NPM) di pengaturan terlebih dahulu';
       }
 
       // ================= ANTI SPAM =================
       final now = DateTime.now();
-
       if (_lastAbsen != null) {
         final diff = now.difference(_lastAbsen!).inMinutes;
-        if (diff < 5) {
-          throw 'Tunggu 5 menit untuk absen lagi';
-        }
+        if (diff < 5) throw 'Tunggu 5 menit untuk absen lagi';
       }
 
-      // ================= FACE CHECK =================
+      // ================= ALUR HADIR =================
       setState(() => _status = 'Validasi wajah...');
       await _checkFace();
 
-      // ================= GPS =================
       setState(() => _status = 'Ambil lokasi...');
       final pos = await _getPosition();
+      final lokasi = '${pos.latitude},${pos.longitude}';
 
-      // ================= UPLOAD =================
-      setState(() => _status = 'Upload data...');
-
-      final photoPath = await SupabaseService.uploadSelfieWeb(
-        _imageBytes!,
-        npm!,
-      );
-
-      if (photoPath == null) throw 'Upload gagal';
-
-      // ================= CEK SESI ABSENSI =================
-      final sesi = await Supabase.instance.client
-          .from('sesi_absensi')
-          .select()
-          .eq('is_open', true)
-          .maybeSingle();
-
-      if (sesi == null) {
-        throw 'Belum ada sesi absensi yang dibuka';
+      setState(() => _status = 'Mencari alamat...');
+      String alamat = '-';
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          alamat = [p.street, p.subLocality, p.locality, p.subAdministrativeArea]
+              .where((e) => e != null && e.isNotEmpty)
+              .join(', ');
+        }
+      } catch (_) {
+        alamat = 'Koordinat: $lokasi';
       }
+
+      setState(() => _status = 'Upload foto...');
+      final photoPath = await SupabaseService.uploadSelfieWeb(_imageBytes!, npm);
+      if (photoPath == null) throw 'Upload foto gagal';
+
+      // ================= SIMPAN DATA =================
+      setState(() => _status = 'Menyimpan data...');
 
       await Supabase.instance.client.from('data_absensi').insert({
         'nama': nama,
         'npm': npm,
-        'lokasi': '${pos.latitude},${pos.longitude}',
-        'alamat': 'Koordinat: ${pos.latitude},${pos.longitude}',
+        'lokasi': lokasi,
+        'alamat': alamat,
         'foto_path': photoPath,
         'status': 'Hadir',
         'jenis': 'Hadir',
         'user_id': user.id,
         'waktu': now.toUtc().toIso8601String(),
         'is_mocked': pos.isMocked,
-        'sesi_id': sesi['id'],
+        'sesi_id': _activeSesi!['id'],
       });
 
       _lastAbsen = now;
-
       setState(() {
-        _status = 'Absen berhasil ✅';
+        _status = 'Absensi berhasil ✅';
         _imageBytes = null;
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Absen berhasil'),
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text('Absensi Hadir berhasil disimpan')),
         );
       }
     } catch (e) {
@@ -316,127 +271,176 @@ class _AbsenScreenState extends State<AbsenScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
-        title: const Text('Absen'),
+        title: const Text('Absen Hadir'),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // STATUS PILL
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Text(_status, style: const TextStyle(fontWeight: FontWeight.w600)),
-            ),
-
+            _buildSesiInfo(),
             const SizedBox(height: 16),
-
-            // CAMERA PREVIEW CARD (iOS STYLE)
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      )
-                    ],
-                  ),
-                  child: _imageBytes != null
-                      ? Image.memory(
-                          _imageBytes!,
-                          fit: BoxFit.cover,
-                        )
-                      : (_isCameraReady
-                          ? CameraPreview(_controller!)
-                          : const Center(
-                              child: CircularProgressIndicator(color: Colors.white),
-                            )),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // GLASS INFO CARD
+            
+            // CAMERA PREVIEW
             ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.4),
-                    ),
-                  ),
-                  child: const Text(
-                    "Pastikan wajah terlihat jelas + GPS aktif",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ),
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: double.infinity,
+                height: 350,
+                decoration: const BoxDecoration(color: Colors.black),
+                child: _imageBytes != null
+                    ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                    : (_isCameraReady
+                        ? CameraPreview(_controller!)
+                        : const Center(child: CircularProgressIndicator(color: Colors.white))),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // BUTTON ACTIONS (iOS STYLE)
+            // BUTTON ACTIONS
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _imageBytes != null ? () => setState(() => _imageBytes = null) : _takePhoto,
+                  child: ElevatedButton.icon(
+                    onPressed: _takePhoto,
+                    icon: const Icon(Icons.camera_alt_rounded),
+                    label: Text(_imageBytes != null ? "Ulangi Foto" : "Ambil Selfie"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
                       elevation: 0,
+                      side: BorderSide(color: Colors.grey.shade300),
                       padding: const EdgeInsets.all(14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: Colors.grey),
-                      ),
-                    ),
-                    child: Text(_imageBytes != null ? "Ulangi Foto" : "Ambil Foto"),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading || _imageBytes == null ? null : _absen,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF007AFF),
-                      padding: const EdgeInsets.all(14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      _loading ? "..." : "Absen",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            // SUBMIT BUTTON
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading || _imageBytes == null || _activeSesi == null ? null : _absen,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF007AFF),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: _loading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text(
+                        "KIRIM KEHADIRAN",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            Text(_status, style: const TextStyle(fontSize: 13, color: Colors.grey)),
           ],
         ),
       ),
     );
   }
-}
 
+  Widget _buildSesiInfo() {
+    if (_fetchingSesi) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (_activeSesi == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.red.shade100),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.event_busy_rounded, color: Colors.red.shade400, size: 32),
+            const SizedBox(height: 12),
+            const Text(
+              "Belum ada sesi absensi yang dibuka",
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Silakan hubungi dosen pengampu mata kuliah Anda.",
+              style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final mk = _activeSesi!['mata_kuliah'];
+    final namaMK = mk['nama_mk'] ?? '-';
+    final jurusan = mk['jurusan'] ?? '-';
+    final semester = mk['semester'] ?? '-';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF007AFF).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF007AFF).withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book_rounded, color: Color(0xFF007AFF), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  namaMK,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.school_outlined, color: Colors.grey, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                "$jurusan - Semester $semester",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

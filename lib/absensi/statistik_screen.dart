@@ -11,15 +11,12 @@ class StatistikScreen extends StatelessWidget {
         await supabase.from('data_absensi').select().eq('jenis', 'Hadir');
     final izin =
         await supabase.from('data_absensi').select().eq('jenis', 'Izin');
-    final cuti =
-        await supabase.from('data_absensi').select().eq('jenis', 'Cuti');
     final sakit =
         await supabase.from('data_absensi').select().eq('jenis', 'Sakit');
 
     return {
       'Hadir': hadir.length,
       'Izin': izin.length,
-      'Cuti': cuti.length,
       'Sakit': sakit.length,
     };
   }
@@ -51,7 +48,7 @@ class StatistikScreen extends StatelessWidget {
 
           final s = snapshot.data!;
           final total =
-              s['Hadir']! + s['Izin']! + s['Cuti']! + s['Sakit']!;
+              s['Hadir']! + s['Izin']! + s['Sakit']!;
 
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -68,7 +65,6 @@ class StatistikScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _card("Hadir", s['Hadir']!, const Color(0xFF34C759)),
               _card("Izin", s['Izin']!, const Color(0xFF007AFF)),
-              _card("Cuti", s['Cuti']!, const Color(0xFF5856D6)),
               _card("Sakit", s['Sakit']!, const Color(0xFFFF3B30)),
             ],
           );

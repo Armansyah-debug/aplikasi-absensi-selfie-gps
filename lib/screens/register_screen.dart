@@ -9,14 +9,38 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _namaController = TextEditingController();
+  final _npmController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  String? _selectedJurusan;
+  int? _selectedSemester;
+
+  final List<String> _jurusanList = [
+    'Informatika',
+    'Sistem Informasi',
+    'Manajemen',
+    'Akuntansi',
+  ];
+
+  final List<int> _semesterList = List.generate(14, (index) => index + 1);
 
   String _message = '';
   bool _obscure = true;
   bool _isLoading = false;
 
   Future<void> _register() async {
+    if (_namaController.text.isEmpty ||
+        _npmController.text.isEmpty ||
+        _selectedJurusan == null ||
+        _selectedSemester == null ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
+      setState(() => _message = 'Semua field harus diisi');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _message = '';
@@ -35,6 +59,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'id': user.id,
           'email': user.email,
           'role': 'user',
+          'nama': _namaController.text.trim(),
+          'npm': _npmController.text.trim(),
+          'jurusan': _selectedJurusan,
+          'semester': _selectedSemester,
         });
 
         setState(() {
@@ -88,6 +116,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 40),
+
+              // ================= NAMA =================
+              _buildLabel("Nama Lengkap"),
+              _buildTextField(
+                controller: _namaController,
+                hint: "Masukkan nama lengkap",
+                icon: Icons.person_outline_rounded,
+              ),
+              const SizedBox(height: 20),
+
+              // ================= NPM =================
+              _buildLabel("NPM / ID"),
+              _buildTextField(
+                controller: _npmController,
+                hint: "Masukkan NPM",
+                icon: Icons.badge_outlined,
+              ),
+              const SizedBox(height: 20),
+
+              // ================= JURUSAN & SEMESTER =================
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel("Jurusan"),
+                        _buildDropdown<String>(
+                          value: _selectedJurusan,
+                          hint: "Pilih",
+                          items: _jurusanList,
+                          onChanged: (v) => setState(() => _selectedJurusan = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel("Semester"),
+                        _buildDropdown<int>(
+                          value: _selectedSemester,
+                          hint: "Pilih",
+                          items: _semesterList,
+                          onChanged: (v) => setState(() => _selectedSemester = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
 
               // ================= EMAIL =================
               _buildLabel("Email"),
@@ -236,6 +320,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<T> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButtonFormField<T>(
+          value: value,
+          hint: Text(hint, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+          items: items.map((item) {
+            return DropdownMenuItem<T>(
+              value: item,
+              child: Text(item.toString(), style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          decoration: const InputDecoration(border: InputBorder.none),
         ),
       ),
     );

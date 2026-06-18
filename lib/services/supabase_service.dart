@@ -109,7 +109,7 @@ class SupabaseService {
   }
 
   // =====================================================
-  // INSERT IZIN / CUTI / SAKIT
+  // INSERT IZIN / SAKIT
   // =====================================================
   static Future<void> insertIzin({
     required String name,
@@ -248,10 +248,57 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getAllMK() async {
     try {
-      final res = await _supabase.from('mata_kuliah').select('id, nama_mk');
+      final res = await _supabase.from('mata_kuliah').select('*').order('nama_mk');
       return List<Map<String, dynamic>>.from(res);
     } catch (e) {
       debugPrint('GET ALL MK ERROR: $e');
+      return [];
+    }
+  }
+
+  static Future<void> insertMK({
+    required String namaMk,
+    required String jurusan,
+    required int semester,
+    String? dosenId,
+  }) async {
+    await _supabase.from('mata_kuliah').insert({
+      'nama_mk': namaMk,
+      'jurusan': jurusan,
+      'semester': semester,
+      'dosen_id': dosenId,
+    });
+  }
+
+  static Future<void> updateMK({
+    required int id,
+    required String namaMk,
+    required String jurusan,
+    required int semester,
+    String? dosenId,
+  }) async {
+    await _supabase.from('mata_kuliah').update({
+      'nama_mk': namaMk,
+      'jurusan': jurusan,
+      'semester': semester,
+      'dosen_id': dosenId,
+    }).eq('id', id);
+  }
+
+  static Future<void> deleteMK(int id) async {
+    await _supabase.from('mata_kuliah').delete().eq('id', id);
+  }
+
+  static Future<List<Map<String, dynamic>>> getDosenList() async {
+    try {
+      final res = await _supabase
+          .from('profiles')
+          .select('id, nama')
+          .eq('role', 'dosen')
+          .order('nama');
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET DOSEN LIST ERROR: $e');
       return [];
     }
   }

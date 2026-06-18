@@ -97,6 +97,24 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
 
     setState(() => loadingSubmit = true);
     try {
+      // 1. Dapatkan info MK yang dipilih (jurusan & semester)
+      final mk = listMK.firstWhere((e) => e['id'].toString() == selectedMK);
+      final jurusan = mk['jurusan'];
+      final semester = mk['semester'];
+
+      // 2. Cek apakah sudah ada sesi aktif untuk JURUSAN & SEMESTER yang sama
+      final existingSesi = await supabase
+          .from('sesi_absensi')
+          .select('id, mata_kuliah!inner(jurusan, semester)')
+          .eq('is_open', true)
+          .eq('mata_kuliah.jurusan', jurusan)
+          .eq('mata_kuliah.semester', semester)
+          .maybeSingle();
+
+      if (existingSesi != null) {
+        throw 'Gagal: Masih ada sesi aktif untuk $jurusan Semester $semester. Tutup sesi tersebut terlebih dahulu.';
+      }
+
       await SupabaseService.createSesiAbsensi(
         mkId: selectedMK!,
         pertemuanId: selectedPertemuan, // Bisa null untuk saat ini
@@ -407,7 +425,11 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                   itemBuilder: (context, index) {
                     final sesi = activeSesi[index];
                     final isOpen = sesi['is_open'] ?? false;
-                    final mkName = getNamaMK(sesi['mata_kuliah_id']);
+                    final mkData = listMK.firstWhere(
+                      (e) => e['id'] == sesi['mata_kuliah_id'],
+                      orElse: () => <String, dynamic>{},
+                    );
+                    final mkName = mkData['nama_mk'] ?? 'Mata Kuliah';
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../absensi/riwayat_screen.dart';
 import '../absensi/statistik_screen.dart';
 import 'kelola_sesi_screen.dart';
+import 'kelola_mk_screen.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
@@ -20,6 +21,22 @@ class AdminScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.book_outlined),
+              title: const Text('Kelola Mata Kuliah'),
+              subtitle: const Text('Tambah, edit, hapus MK'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const KelolaMKScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: ListTile(
               leading: const Icon(Icons.list_alt),

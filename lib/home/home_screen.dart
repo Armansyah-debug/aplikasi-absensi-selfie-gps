@@ -2,13 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../absensi/izin_cuti_screen.dart';
 import '../absensi/riwayat_screen.dart';
 import '../absensi/statistik_screen.dart';
 import '../absensi/absenScreen.dart';
+import '../absensi/izin_screen.dart';
 import '../../services/supabase_service.dart';
 import '../screens/login_screen.dart';
 import '../admin/kelola_sesi_screen.dart';
+import '../admin/kelola_mk_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -221,11 +222,11 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 12),
         _menuCard(
           icon: Icons.edit_calendar_rounded,
-          title: "Izin / Cuti / Sakit",
+          title: "Izin / Sakit",
           subtitle: "Ajukan permohonan",
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const IzinCutiScreen()),
+            MaterialPageRoute(builder: (_) => const IzinScreen()),
           ),
         ),
         const SizedBox(height: 12),
@@ -284,6 +285,16 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const StatistikScreen()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _menuCard(
+          icon: Icons.book_outlined,
+          title: "Kelola Mata Kuliah",
+          subtitle: "Tambah, edit, hapus mata kuliah",
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const KelolaMKScreen()),
           ),
         ),
         const SizedBox(height: 12),
