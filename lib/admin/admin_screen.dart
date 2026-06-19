@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../absensi/riwayat_screen.dart';
+import '../admin/riwayat_admin_screen.dart';
 import '../absensi/statistik_screen.dart';
 import 'kelola_sesi_screen.dart';
 import 'kelola_mk_screen.dart';
@@ -46,7 +46,7 @@ class AdminScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const RiwayatScreen(),
+                    builder: (_) => const RiwayatAdminScreen(),
                   ),
                 );
               },
@@ -88,3 +88,4 @@ class AdminScreen extends StatelessWidget {
     );
   }
 }
+

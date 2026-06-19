@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../absensi/riwayat_screen.dart';
+import '../absensi/riwayat_mahasiswa_screen.dart';
 import '../absensi/statistik_screen.dart';
 import '../absensi/absenScreen.dart';
 import '../absensi/izin_screen.dart';
@@ -236,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle: "Lihat data absensi",
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const RiwayatScreen()),
+            MaterialPageRoute(builder: (_) => const RiwayatMahasiswaScreen()),
           ),
         ),
       ];
@@ -261,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle: "Lihat data absensi",
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const RiwayatScreen()),
+            MaterialPageRoute(builder: (_) => const RiwayatMahasiswaScreen()),
           ),
         ),
       ];
@@ -274,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle: "Semua data user",
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const RiwayatScreen()),
+            MaterialPageRoute(builder: (_) => const RiwayatMahasiswaScreen()),
           ),
         ),
         const SizedBox(height: 12),
