@@ -74,11 +74,11 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
             return const Center(child: Text('Gagal memuat data'));
           }
 
-          final List<Map<String, dynamic>> rawAbsensi =
+            final List<Map<String, dynamic>> rawAbsensi =
               List<Map<String, dynamic>>.from(snapshot.data![0]);
-          final List<Map<String, dynamic>> listSesi =
+            final List<Map<String, dynamic>> listSesi =
               List<Map<String, dynamic>>.from(snapshot.data![1]);
-          final List<Map<String, dynamic>> listMK =
+            final List<Map<String, dynamic>> listMK =
               List<Map<String, dynamic>>.from(snapshot.data![2]);
 
           // ================= GROUPING BY MATA KULIAH =================
@@ -136,6 +136,8 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                 orElse: () => <String, dynamic>{},
               );
               final groupName = mkData['nama_mk'] ?? 'Mata Kuliah';
+              final groupJurusan = mkData['jurusan'] ?? '-';
+              final groupSemester = mkData['semester']?.toString() ?? '-';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -161,19 +163,39 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                         Text(
                           groupName,
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                             color: Colors.black87,
                           ),
                         ),
-                        if (mkData['semester'] != null)
-                          Text(
-                            'Semester ${mkData['semester']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              '$groupJurusan',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Semester $groupSemester',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     trailing: Container(
@@ -289,19 +311,21 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                                           Text(
                                             'Pertemuan Ke-$pertemuanKe',
                                             style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey.shade800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                        ],
+                                        if (materi != null && materi.isNotEmpty) ...[
+                                          Text(
+                                            'Materi: $materi',
+                                            style: TextStyle(
+                                              fontSize: 12,
                                               color: Colors.grey.shade700,
                                             ),
                                           ),
-                                          if (materi != null && materi.isNotEmpty)
-                                            Text(
-                                              'Materi: $materi',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
                                           const SizedBox(height: 6),
                                         ],
                                         // ROW LOKASI / TANGGAL
@@ -354,27 +378,29 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                                         Row(
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: isHadir
-                                                    ? const Color(0xFF34C759)
-                                                        .withOpacity(0.1)
-                                                    : const Color(0xFFFF9500)
-                                                        .withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                jenis,
-                                                style: TextStyle(
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isHadir
-                                                      ? const Color(0xFF248A3D)
-                                                      : const Color(0xFFC97600),
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: isHadir
+                                                        ? const Color(0xFF34C759).withOpacity(0.12)
+                                                        : jenis == 'Izin'
+                                                            ? const Color(0xFF007AFF).withOpacity(0.12)
+                                                            : const Color(0xFFFF3B30).withOpacity(0.12),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: Text(
+                                                    jenis,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isHadir
+                                                          ? const Color(0xFF248A3D)
+                                                          : jenis == 'Izin'
+                                                              ? const Color(0xFF0051D5)
+                                                              : const Color(0xFFB00020),
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
                                             if (isAdmin && isMocked) ...[
                                               const SizedBox(width: 8),
                                               Container(
