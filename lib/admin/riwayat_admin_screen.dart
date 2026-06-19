@@ -155,13 +155,26 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                   child: ExpansionTile(
                     initiallyExpanded: false,
                     leading: const Icon(Icons.menu_book_rounded, color: Color(0xFF007AFF)),
-                    title: Text(
-                      groupName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Colors.black87,
-                      ),
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          groupName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (mkData['semester'] != null)
+                          Text(
+                            'Semester ${mkData['semester']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                      ],
                     ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -201,6 +214,13 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                             }
                             final fotoPath = item['foto_path'];
                             final fotoUrl = SupabaseService.getFotoUrl(fotoPath ?? '');
+                            
+                            final sesi = listSesi.firstWhere(
+                              (s) => s['id'] == item['sesi_id'],
+                              orElse: () => {},
+                            );
+                            final pertemuanKe = sesi['pertemuan_ke'];
+                            final materi = sesi['materi'];
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 16),
@@ -265,7 +285,25 @@ class _RiwayatAdminScreenState extends State<RiwayatAdminScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 6),
-                                        
+                                        if (pertemuanKe != null) ...[
+                                          Text(
+                                            'Pertemuan Ke-$pertemuanKe',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                          if (materi != null && materi.isNotEmpty)
+                                            Text(
+                                              'Materi: $materi',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          const SizedBox(height: 6),
+                                        ],
                                         // ROW LOKASI / TANGGAL
                                         Row(
                                           children: [

@@ -143,8 +143,7 @@ class SupabaseService {
   static Stream<List<Map<String, dynamic>>> streamAllData() {
     return _supabase
         .from('data_absensi')
-        .stream(primaryKey: ['id'])
-        .order('waktu', ascending: false);
+        .stream(primaryKey: ['id']).order('waktu', ascending: false);
   }
 
   // =====================================================
@@ -208,8 +207,7 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getHistoryRaw(
-      String userId) async {
+  static Future<List<Map<String, dynamic>>> getHistoryRaw(String userId) async {
     try {
       final res = await _supabase
           .from('data_absensi')
@@ -238,7 +236,9 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getSesiList() async {
     try {
-      final res = await _supabase.from('sesi_absensi').select('id, mata_kuliah_id');
+      final res = await _supabase
+          .from('sesi_absensi')
+          .select('id, mata_kuliah_id, pertemuan_ke, materi');
       return List<Map<String, dynamic>>.from(res);
     } catch (e) {
       debugPrint('GET SESI LIST ERROR: $e');
@@ -248,7 +248,8 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getAllMK() async {
     try {
-      final res = await _supabase.from('mata_kuliah').select('*').order('nama_mk');
+      final res =
+          await _supabase.from('mata_kuliah').select('*').order('nama_mk');
       return List<Map<String, dynamic>>.from(res);
     } catch (e) {
       debugPrint('GET ALL MK ERROR: $e');
@@ -286,6 +287,8 @@ class SupabaseService {
   }
 
   static Future<void> deleteMK(int id) async {
+    await _supabase.from('sesi_absensi').delete().eq('mata_kuliah_id', id);
+
     await _supabase.from('mata_kuliah').delete().eq('id', id);
   }
 
@@ -311,15 +314,14 @@ class SupabaseService {
 
     if (path.startsWith('http')) return path;
 
-    return _supabase.storage
-        .from(bucketName)
-        .getPublicUrl(path);
+    return _supabase.storage.from(bucketName).getPublicUrl(path);
   }
 
   // =====================================================
   // AKADEMIK & SESI
   // =====================================================
-  static Future<List<Map<String, dynamic>>> getMataKuliah({String? dosenId}) async {
+  static Future<List<Map<String, dynamic>>> getMataKuliah(
+      {String? dosenId}) async {
     try {
       var query = _supabase.from('mata_kuliah').select();
 
@@ -396,15 +398,10 @@ class SupabaseService {
       if (fotoPath != null &&
           fotoPath.isNotEmpty &&
           !fotoPath.startsWith('http')) {
-        await _supabase.storage
-            .from('selfies')
-            .remove([fotoPath]);
+        await _supabase.storage.from('selfies').remove([fotoPath]);
       }
 
-      await _supabase
-          .from('data_absensi')
-          .delete()
-          .eq('id', id);
+      await _supabase.from('data_absensi').delete().eq('id', id);
     } catch (e) {
       debugPrint('DELETE ERROR: $e');
       rethrow;
