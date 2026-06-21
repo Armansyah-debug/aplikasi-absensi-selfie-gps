@@ -1,22 +1,36 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:camera/camera.dart';
 
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'navigation/main_nav.dart';
 import 'screens/login_screen.dart';
 import 'screens/reset_password_screen.dart';
-import 'home/home_screen.dart';
-
 import 'supabase_client.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 late final StreamSubscription<AuthState> authSub;
 late List<CameraDescription> cameras;
+
+Future<void> _setupCameras() async {
+  try {
+    cameras = await availableCameras();
+  } catch (e) {
+    cameras = [];
+    debugPrint('No cameras found: $e');
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  cameras = await availableCameras();
+  // Fix locale Indonesia untuk DateFormat
+  await initializeDateFormatting('id_ID', null);
+
+  await _setupCameras();
   await SupabaseClientConfig.initialize();
 
   authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -37,17 +51,14 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // 🔥 FUNGSI UTAMA: Mengecek status session di memori HP
   Widget _getInitialScreen() {
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session != null) {
-      // Jika session ada/user sudah login, langsung buka halaman utama
-      return const HomeScreen();
-    } else {
-      // Jika session kosong, lempar ke halaman login
-      return const LoginScreen();
+      return const MainNav();
     }
+
+    return const LoginScreen();
   }
 
   @override
@@ -57,9 +68,14 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF005F73),
+          primary: const Color(0xFF005F73),
+          secondary: const Color(0xFF0A9396),
+          surface: const Color(0xFFF8F9FA),
+        ),
       ),
-      // 🔥 KODE DIUBAH: Sekarang menggunakan pengecekan otomatis
       home: _getInitialScreen(),
     );
   }

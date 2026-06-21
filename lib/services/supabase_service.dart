@@ -306,6 +306,21 @@ class SupabaseService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getMahasiswaList() async {
+  try {
+    final res = await _supabase
+        .from('profiles')
+        .select('id, nama, npm, email, jurusan, semester')
+        .eq('role', 'user')
+        .order('nama');
+
+    return List<Map<String, dynamic>>.from(res);
+  } catch (e) {
+    debugPrint('GET MAHASISWA LIST ERROR: $e');
+    return [];
+  }
+}
+
   // =====================================================
   // FOTO URL (FIX AMAN)
   // =====================================================

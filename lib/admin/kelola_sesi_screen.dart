@@ -147,7 +147,7 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text(
           'Kelola Sesi Absensi',
@@ -155,6 +155,7 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
             color: Colors.black,
             fontWeight: FontWeight.bold,
             fontSize: 20,
+            letterSpacing: -0.5,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -171,9 +172,10 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade100),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(0.02),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -187,7 +189,7 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF007AFF),
+                      color: Color(0xFF005F73),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -265,7 +267,7 @@ class _KelolaSesiScreenState extends State<KelolaSesiScreen> {
                       onPressed:
                           loadingSubmit ? null : () => _handleBukaSesiBaru(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF007AFF),
+                        backgroundColor: const Color(0xFF005F73),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

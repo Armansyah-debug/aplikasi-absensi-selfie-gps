@@ -30,6 +30,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
+    final theme = Theme.of(context);
 
     if (user == null) {
       return const Scaffold(
@@ -41,13 +42,14 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     final isDosen = role == 'dosen';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
-          isAdmin ? 'Riwayat Absensi' : 'Riwayat Saya',
+          isAdmin ? 'Riwayat Absensi Global' : 'Riwayat Kehadiran Saya',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
+            letterSpacing: -0.5,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -68,6 +70,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData || snapshot.data == null) {
@@ -112,12 +118,12 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history_rounded,
+                  Icon(Icons.history_toggle_off_rounded,
                       size: 64, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
                     'Tidak ada data absensi mata kuliah',
-                    style: TextStyle(color: Colors.grey.shade500),
+                    style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -125,7 +131,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             itemCount: mkIdList.length,
             itemBuilder: (context, gIndex) {
               final mkId = mkIdList[gIndex];
@@ -136,15 +142,18 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                 orElse: () => <String, dynamic>{},
               );
               final groupName = mkData['nama_mk'] ?? 'Mata Kuliah';
+              final groupJurusan = mkData['jurusan'] ?? '-';
+              final groupSemester = mkData['semester']?.toString() ?? '-';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey.shade100),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withOpacity(0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -154,7 +163,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
                     initiallyExpanded: false,
-                    leading: const Icon(Icons.menu_book_rounded, color: Color(0xFF007AFF)),
+                    leading: CircleAvatar(
+                      backgroundColor: theme.colorScheme.primary.withOpacity(0.08),
+                      child: Icon(Icons.menu_book_rounded, color: theme.colorScheme.primary, size: 20),
+                    ),
                     title: Text(
                       groupName,
                       style: const TextStyle(
@@ -163,10 +175,18 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                         color: Colors.black87,
                       ),
                     ),
+                    subtitle: Text(
+                      "$groupJurusan • Sem $groupSemester",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: theme.colorScheme.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -174,13 +194,13 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade700,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ),
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Column(
                           children: groupItems.map((item) {
                             final id = item['id'];
@@ -202,85 +222,118 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                             final fotoPath = item['foto_path'];
                             final fotoUrl = SupabaseService.getFotoUrl(fotoPath ?? '');
 
+                            final sesi = listSesi.firstWhere(
+                              (s) => s['id'] == item['sesi_id'],
+                              orElse: () => {},
+                            );
+                            final pertemuanKe = sesi['pertemuan_ke'];
+                            final materi = sesi['materi'];
+
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
+                                color: const Color(0xFFF8F9FA),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.grey.shade100),
                               ),
                               child: Row(
                                 children: [
-                                  // FOTO
+                                  // FOTO / ICON
                                   GestureDetector(
                                     onTap: fotoUrl.isNotEmpty
                                         ? () => _showImage(context, fotoUrl)
                                         : null,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(color: Colors.grey.shade200),
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(12),
                                         child: fotoUrl.isNotEmpty
                                             ? Image.network(
                                                 fotoUrl,
-                                                width: 65,
-                                                height: 65,
+                                                width: 56,
+                                                height: 56,
                                                 fit: BoxFit.cover,
                                               )
                                             : Container(
-                                                width: 65,
-                                                height: 65,
+                                                width: 56,
+                                                height: 56,
                                                 color: Colors.white,
                                                 child: Icon(Icons.person_rounded,
-                                                    color: Colors.grey.shade400),
+                                                    color: Colors.grey.shade400, size: 24),
                                               ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  const SizedBox(width: 14),
                                   // DETAIL TEXT
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          namaMahasiswa,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
+                                        if (isAdmin || isDosen) ...[
+                                          Text(
+                                            namaMahasiswa,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          npm,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            npm,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade500,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        
+                                          const SizedBox(height: 4),
+                                        ],
+                                        if (pertemuanKe != null) ...[
+                                          Text(
+                                            'Pertemuan Ke-$pertemuanKe',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                        ],
+                                        if (materi != null && materi.isNotEmpty) ...[
+                                          Text(
+                                            'Materi: $materi',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                        ],
                                         // ROW LOKASI / TANGGAL
                                         Row(
                                           children: [
                                             Icon(
                                               isHadir ? Icons.location_on_rounded : Icons.calendar_today_rounded,
-                                              size: 10, 
-                                              color: Colors.grey
+                                              size: 11, 
+                                              color: Colors.grey.shade500,
                                             ),
                                             const SizedBox(width: 4),
                                             Expanded(
                                               child: Text(
-                                                alamat, // Alamat atau Range Tanggal
+                                                alamat,
                                                 style: TextStyle(
                                                   fontSize: 10,
-                                                  color: Colors.grey.shade600,
+                                                  color: Colors.grey.shade500,
+                                                  fontWeight: FontWeight.w500,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -288,13 +341,11 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                             ),
                                           ],
                                         ),
-                                        
-                                        // ROW ALASAN (HANYA IZIN/SAKIT)
-                                        if (!isHadir) ...[
+                                        if (!isHadir && alasan.isNotEmpty && alasan != '-') ...[
                                           const SizedBox(height: 4),
                                           Row(
                                             children: [
-                                              const Icon(Icons.notes_rounded, size: 10, color: Colors.grey),
+                                              Icon(Icons.notes_rounded, size: 11, color: Colors.grey.shade500),
                                               const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(
@@ -311,8 +362,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                             ],
                                           ),
                                         ],
-
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 6),
                                         Row(
                                           children: [
                                             Container(
@@ -320,10 +370,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                                   horizontal: 8, vertical: 3),
                                               decoration: BoxDecoration(
                                                 color: isHadir
-                                                    ? const Color(0xFF34C759)
-                                                        .withOpacity(0.1)
-                                                    : const Color(0xFFFF9500)
-                                                        .withOpacity(0.1),
+                                                    ? const Color(0xFF94D2BD).withOpacity(0.2)
+                                                    : jenis == 'Izin'
+                                                        ? const Color(0xFF007AFF).withOpacity(0.1)
+                                                        : const Color(0xFFEE9B00).withOpacity(0.15),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
@@ -332,13 +382,15 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                                   fontSize: 9,
                                                   fontWeight: FontWeight.bold,
                                                   color: isHadir
-                                                      ? const Color(0xFF248A3D)
-                                                      : const Color(0xFFC97600),
+                                                      ? const Color(0xFF0A9396)
+                                                      : jenis == 'Izin'
+                                                          ? const Color(0xFF0051D5)
+                                                          : const Color(0xFFCA6702),
                                                 ),
                                               ),
                                             ),
                                             if (isAdmin && isMocked) ...[
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 6),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(
                                                     horizontal: 8, vertical: 3),
@@ -367,23 +419,23 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                     children: [
                                       Text(
                                         jam,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF007AFF),
+                                          color: theme.colorScheme.primary,
                                         ),
                                       ),
                                       if (isAdmin)
                                         IconButton(
                                           icon: Icon(Icons.delete_outline_rounded,
-                                              color: Colors.red.shade400, size: 16),
+                                              color: Colors.red.shade400, size: 18),
                                           onPressed: () async {
                                             final confirm = await showDialog<bool>(
                                                 context: context,
                                                 builder: (_) => AlertDialog(
-                                                      title: const Text("Hapus?"),
+                                                      title: const Text("Hapus Data?"),
                                                       content: const Text(
-                                                          "Data akan dihapus permanen."),
+                                                          "Data absensi ini akan dihapus secara permanen."),
                                                       actions: [
                                                         TextButton(
                                                             onPressed: () =>
@@ -415,7 +467,6 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                           }).toList(),
                         ),
                       ),
-                      const SizedBox(height: 8),
                     ],
                   ),
                 ),

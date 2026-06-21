@@ -45,35 +45,49 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
     String? selectedJurusan = isEdit ? mk['jurusan'] : null;
     int? selectedSemester = isEdit ? mk['semester'] : null;
     String? selectedDosen = isEdit ? mk['dosen_id'] : null;
+    final primaryColor = const Color(0xFF005F73);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 20,
+            left: 24,
+            right: 24,
+            top: 24,
           ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   isEdit ? 'Edit Mata Kuliah' : 'Tambah Mata Kuliah',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 20),
                 TextField(
                   controller: namaController,
                   decoration: InputDecoration(
                     labelText: 'Nama Mata Kuliah',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -84,6 +98,7 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                   items: _jurusanList.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => setModalState(() => selectedJurusan = v),
                   decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -91,9 +106,10 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                 DropdownButtonFormField<int>(
                   value: selectedSemester,
                   hint: const Text('Pilih Semester'),
-                  items: _semesterList.map((e) => DropdownMenuItem(value: e, child: Text(e.toString()))).toList(),
+                  items: _semesterList.map((e) => DropdownMenuItem(value: e, child: Text("Semester $e"))).toList(),
                   onChanged: (v) => setModalState(() => selectedSemester = v),
                   decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -113,6 +129,7 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                   ],
                   onChanged: (v) => setModalState(() => selectedDosen = v),
                   decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -121,10 +138,10 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
+                  height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF007AFF),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: primaryColor,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -160,7 +177,7 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                     child: Text(isEdit ? 'Simpan Perubahan' : 'Tambah Mata Kuliah', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -171,25 +188,30 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = const Color(0xFF005F73);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Kelola Mata Kuliah', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Kelola Mata Kuliah',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: -0.5),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
+        centerTitle: false,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _listMK.isEmpty
               ? const Center(child: Text('Belum ada data mata kuliah'))
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   itemCount: _listMK.length,
                   itemBuilder: (context, index) {
                     final mk = _listMK[index];
                     
-                    // Manual mapping dosen name
                     final dosenData = _listDosen.firstWhere(
                       (d) => d['id'].toString() == mk['dosen_id'].toString(),
                       orElse: () => {},
@@ -198,34 +220,39 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                     
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(color: Colors.grey.shade100),
+                      ),
+                      color: Colors.white,
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        title: Text(mk['nama_mk'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        title: Text(mk['nama_mk'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 4),
-                            Text('${mk['jurusan']} • Semester ${mk['semester']}'),
+                            const SizedBox(height: 6),
+                            Text('${mk['jurusan']} • Semester ${mk['semester']}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                             const SizedBox(height: 2),
-                            Text('Dosen: $dosenName', style: TextStyle(color: Colors.grey.shade700)),
+                            Text('Dosen: $dosenName', style: TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.w500)),
                           ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                              icon: Icon(Icons.edit_outlined, color: primaryColor, size: 20),
                               onPressed: () => _showForm(mk: mk),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => AlertDialog(
                                     title: const Text('Hapus Mata Kuliah?'),
-                                    content: const Text('Tindakan ini tidak dapat dibatalkan.'),
+                                    content: const Text('Semua sesi absensi yang berhubungan dengan MK ini juga akan terhapus.'),
                                     actions: [
                                       TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
                                       TextButton(
@@ -250,7 +277,7 @@ class _KelolaMKScreenState extends State<KelolaMKScreen> {
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showForm(),
-        backgroundColor: const Color(0xFF007AFF),
+        backgroundColor: primaryColor,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Tambah MK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),

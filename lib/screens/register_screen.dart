@@ -80,8 +80,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = const Color(0xFF005F73);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -89,51 +91,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.person_add_alt_1_rounded,
-                size: 64,
-                color: Color(0xFF007AFF),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 48,
+                    color: primaryColor,
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                "Buat Akun Baru",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+              const Center(
+                child: Text(
+                  "Buat Akun Baru",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.8,
+                    color: Color(0xFF1A1D20),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                "Daftar untuk mendapatkan akses absensi",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
+              const SizedBox(height: 6),
+              Center(
+                child: Text(
+                  "Daftar untuk mengakses sistem kehadiran mahasiswa",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 36),
 
               // ================= NAMA =================
               _buildLabel("Nama Lengkap"),
               _buildTextField(
                 controller: _namaController,
-                hint: "Masukkan nama lengkap",
+                hint: "Masukkan nama lengkap sesuai KTM",
                 icon: Icons.person_outline_rounded,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ================= NPM =================
-              _buildLabel("NPM / ID"),
+              _buildLabel("NPM / ID Mahasiswa"),
               _buildTextField(
                 controller: _npmController,
-                hint: "Masukkan NPM",
+                hint: "Contoh: 202143501234",
                 icon: Icons.badge_outlined,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ================= JURUSAN & SEMESTER =================
               Row(
@@ -171,38 +188,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ================= EMAIL =================
-              _buildLabel("Email"),
+              _buildLabel("Email Kampus"),
               _buildTextField(
                 controller: _emailController,
-                hint: "Masukkan email",
+                hint: "name@student.univ.ac.id",
                 icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ================= PASSWORD =================
               _buildLabel("Password"),
               _buildTextField(
                 controller: _passwordController,
-                hint: "Masukkan password",
+                hint: "Minimal 6 karakter",
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
                 obscure: _obscure,
                 onToggleObscure: () => setState(() => _obscure = !_obscure),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 36),
 
               // ================= REGISTER BUTTON =================
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF007AFF),
+                    backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -211,10 +229,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: _isLoading ? null : _register,
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 24,
+                          width: 24,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                            strokeWidth: 2.5,
                             color: Colors.white,
                           ),
                         )
@@ -230,15 +248,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               if (_message.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                Center(
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _message.contains('berhasil') ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _message.contains('berhasil') ? Colors.green.shade100 : Colors.red.shade100),
+                  ),
                   child: Text(
                     _message,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _message.contains('berhasil')
-                          ? const Color(0xFF34C759)
-                          : Colors.red,
+                      color: _message.contains('berhasil') ? Colors.green.shade800 : Colors.red.shade800,
                       fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -250,21 +274,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Sudah punya akun? ",
+                    "Sudah memiliki akun? ",
                     style: TextStyle(color: Colors.grey.shade600),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
+                    child: Text(
                       "Login",
                       style: TextStyle(
-                        color: Color(0xFF007AFF),
+                        color: primaryColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -274,13 +299,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1A1D20),
         ),
       ),
     );
@@ -293,22 +318,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool isPassword = false,
     bool obscure = false,
     VoidCallback? onToggleObscure,
+    TextInputType? keyboardType,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    obscure ? Icons.visibility_off : Icons.visibility,
+                    obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                     color: Colors.grey.shade400,
                     size: 20,
                   ),
@@ -316,7 +344,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 )
               : null,
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.normal),
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -334,9 +362,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<T>(
@@ -345,7 +373,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           items: items.map((item) {
             return DropdownMenuItem<T>(
               value: item,
-              child: Text(item.toString(), style: const TextStyle(fontSize: 14)),
+              child: Text(item.toString(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             );
           }).toList(),
           onChanged: onChanged,
