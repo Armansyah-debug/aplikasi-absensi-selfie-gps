@@ -30,6 +30,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
   DateTime? _lastAbsen;
   Map<String, dynamic>? _activeSesi;
   bool _fetchingSesi = true;
+  bool _alreadyAbsen = false;
 
   // ================= INIT =================
   @override
@@ -63,8 +64,21 @@ class _AbsenScreenState extends State<AbsenScreen> {
             .eq('mata_kuliah.semester', userSemester)
             .maybeSingle();
 
+        bool alreadyAbsen = false;
+        if (sesi != null) {
+          final existing = await Supabase.instance.client
+              .from('data_absensi')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('sesi_id', sesi['id'])
+              .neq('jenis', 'Pelanggaran')
+              .maybeSingle();
+          alreadyAbsen = existing != null;
+        }
+
         setState(() {
           _activeSesi = sesi;
+          _alreadyAbsen = alreadyAbsen;
         });
       }
     } catch (e) {
@@ -151,10 +165,6 @@ class _AbsenScreenState extends State<AbsenScreen> {
       timeLimit: const Duration(seconds: 15),
     );
 
-    if (pos.isMocked) {
-      throw 'Fake GPS terdeteksi';
-    }
-
     return pos;
   }
 
@@ -204,6 +214,21 @@ class _AbsenScreenState extends State<AbsenScreen> {
         if (diff < 5) throw 'Tunggu 5 menit untuk absen lagi';
       }
 
+      // ================= VALIDASI DUPLIKAT ABSENSI (Server Side) =================
+      setState(() => _status = 'Mengecek data absen...');
+      final existingAbsen = await Supabase.instance.client
+          .from('data_absensi')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('sesi_id', _activeSesi!['id'])
+          .neq('jenis', 'Pelanggaran')
+          .maybeSingle();
+
+      if (existingAbsen != null) {
+        setState(() => _alreadyAbsen = true);
+        throw 'Anda sudah melakukan absensi pada sesi ini.';
+      }
+
       // ================= ALUR HADIR =================
       setState(() => _status = 'Validasi wajah...');
       await _checkFace();
@@ -211,6 +236,49 @@ class _AbsenScreenState extends State<AbsenScreen> {
       setState(() => _status = 'Ambil lokasi...');
       final pos = await _getPosition();
       final lokasi = '${pos.latitude},${pos.longitude}';
+
+      if (pos.isMocked) {
+        setState(() => _status = 'Mengecek data pelanggaran...');
+        final existingViolation = await Supabase.instance.client
+            .from('data_absensi')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('sesi_id', _activeSesi!['id'])
+            .eq('jenis', 'Pelanggaran')
+            .maybeSingle();
+
+        if (existingViolation != null) {
+          throw 'Fake GPS terdeteksi. Pelanggaran telah dicatat sebelumnya.';
+        }
+
+        setState(() => _status = 'Mencatat pelanggaran...');
+        String alamat = 'Koordinat: $lokasi';
+        try {
+          List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+          if (placemarks.isNotEmpty) {
+            final p = placemarks.first;
+            alamat = [p.street, p.subLocality, p.locality, p.subAdministrativeArea]
+                .where((e) => e != null && e.isNotEmpty)
+                .join(', ');
+          }
+        } catch (_) {}
+
+        await Supabase.instance.client.from('data_absensi').insert({
+          'nama': nama,
+          'npm': npm,
+          'lokasi': lokasi,
+          'alamat': alamat,
+          'foto_path': '-',
+          'status': 'Ditolak (Fake GPS)',
+          'jenis': 'Pelanggaran',
+          'user_id': user.id,
+          'waktu': now.toUtc().toIso8601String(),
+          'is_mocked': true,
+          'sesi_id': _activeSesi!['id'],
+        });
+
+        throw 'Fake GPS terdeteksi. Nonaktifkan aplikasi mock location dan coba kembali.';
+      }
 
       setState(() => _status = 'Mencari alamat...');
       String alamat = '-';
@@ -251,6 +319,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
       setState(() {
         _status = 'Absensi berhasil ✅';
         _imageBytes = null;
+        _alreadyAbsen = true;
       });
 
       if (mounted) {
@@ -327,17 +396,17 @@ class _AbsenScreenState extends State<AbsenScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _loading || _imageBytes == null || _activeSesi == null ? null : _absen,
+                onPressed: (_loading || _imageBytes == null || _activeSesi == null || _alreadyAbsen) ? null : _absen,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF007AFF),
+                  backgroundColor: _alreadyAbsen ? Colors.grey : const Color(0xFF007AFF),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: _loading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text(
-                        "KIRIM KEHADIRAN",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    : Text(
+                        _alreadyAbsen ? "ANDA SUDAH ABSEN" : "KIRIM KEHADIRAN",
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
               ),
             ),
@@ -476,6 +545,29 @@ class _AbsenScreenState extends State<AbsenScreen> {
                         color: Colors.grey.shade700,
                         fontWeight: FontWeight.w500,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          if (_alreadyAbsen)
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.green.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Anda sudah pernah melakukan absensi di sesi ini.",
+                      style: TextStyle(fontSize: 13, color: Colors.green.shade800, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],

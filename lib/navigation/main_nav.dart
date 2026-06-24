@@ -7,6 +7,7 @@ import '../screens/profile_screen.dart';
 import '../services/supabase_service.dart';
 import '../screens/login_screen.dart';
 import '../admin/admin_shell.dart';
+import '../admin/dosen_monitoring_screen.dart';
 
 class MainNav extends StatefulWidget {
   const MainNav({super.key});
@@ -58,6 +59,7 @@ class _MainNavState extends State<MainNav> {
     } else if (_role == 'dosen') {
       return [
         const HomeScreen(), // Dosen Dashboard
+        const DosenMonitoringScreen(), // Dosen Sesi Monitoring
         const RiwayatScreen(), // Lecturer History
         const ProfileScreen(),
       ];
@@ -83,24 +85,29 @@ class _MainNavState extends State<MainNav> {
         const NavigationDestination(
           icon: Icon(Icons.history_outlined),
           selectedIcon: Icon(Icons.history),
-          label: 'Riwayat',
+          label: 'History',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline_rounded),
           selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profil',
+          label: 'Profile',
         ),
       ];
     } else if (_role == 'dosen') {
       return [
         const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_filled),
-          label: 'Beranda',
+          icon: Icon(Icons.grid_view_outlined),
+          selectedIcon: Icon(Icons.grid_view_rounded),
+          label: 'Dashboard',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.calendar_today_outlined),
+          selectedIcon: Icon(Icons.calendar_today_rounded),
+          label: 'Sesi',
         ),
         const NavigationDestination(
           icon: Icon(Icons.history_outlined),
-          selectedIcon: Icon(Icons.history),
+          selectedIcon: Icon(Icons.history_rounded),
           label: 'Riwayat',
         ),
         const NavigationDestination(
@@ -113,64 +120,71 @@ class _MainNavState extends State<MainNav> {
       // mahasiswa
       return [
         const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_filled),
-          label: 'Beranda',
+          icon: Icon(Icons.grid_view_outlined),
+          selectedIcon: Icon(Icons.grid_view_rounded),
+          label: 'Home',
         ),
         const NavigationDestination(
           icon: Icon(Icons.history_outlined),
-          selectedIcon: Icon(Icons.history),
-          label: 'Riwayat',
+          selectedIcon: Icon(Icons.history_rounded),
+          label: 'History',
         ),
         const NavigationDestination(
-          icon: Icon(Icons.edit_calendar_outlined),
-          selectedIcon: Icon(Icons.edit_calendar),
-          label: 'Izin',
+          icon: Icon(Icons.event_busy_outlined),
+          selectedIcon: Icon(Icons.calendar_today_rounded),
+          label: 'Leave',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline_rounded),
           selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profil',
+          label: 'Profile',
         ),
       ];
     }
   }
 
   @override
-Widget build(BuildContext context) {
-  if (_loading) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // ADMIN langsung masuk AdminShell
+    if (_role == 'admin') {
+      return const AdminShell();
+    }
+
+    final screens = _getScreens();
+
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: screens,
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          destinations: _getNavDestinations(),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFE8E8FF),
+          height: 65,
+        ),
       ),
     );
   }
-
-  // ADMIN langsung masuk AdminShell
-  if (_role == 'admin') {
-    return const AdminShell();
-  }
-
-  final screens = _getScreens();
-
-  return Scaffold(
-    body: IndexedStack(
-      index: _selectedIndex,
-      children: screens,
-    ),
-    bottomNavigationBar: NavigationBar(
-      selectedIndex: _selectedIndex,
-      onDestinationSelected: (index) {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      destinations: _getNavDestinations(),
-      elevation: 8,
-      backgroundColor: Colors.white,
-      indicatorColor:
-          Theme.of(context).colorScheme.primary.withOpacity(0.12),
-    ),
-  );
-}
 }

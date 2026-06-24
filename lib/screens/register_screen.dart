@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/supabase_service.dart';
+import '../constants/app_constants.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,12 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedJurusan;
   int? _selectedSemester;
 
-  final List<String> _jurusanList = [
-    'Informatika',
-    'Sistem Informasi',
-    'Manajemen',
-    'Akuntansi',
-  ];
+  final List<String> _jurusanList = AppConstants.jurusanList;
 
   final List<int> _semesterList = List.generate(14, (index) => index + 1);
 
@@ -80,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF005F73);
+    final primaryColor = const Color(0xFF4343D9);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -96,17 +93,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.person_add_alt_1_rounded,
-                    size: 48,
-                    color: primaryColor,
-                  ),
+                child: Image.asset(
+                  'assets/images/unicheck_logo.png',
+                  width: 80,
+                  height: 80,
                 ),
               ),
               const SizedBox(height: 24),
@@ -320,11 +310,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     VoidCallback? onToggleObscure,
     TextInputType? keyboardType,
   }) {
+    final primaryColor = const Color(0xFF4343D9);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
@@ -345,9 +342,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               : null,
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.normal),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: primaryColor, width: 2),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
         ),
       ),
     );
@@ -359,25 +366,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required List<T> items,
     required ValueChanged<T?> onChanged,
   }) {
+    final primaryColor = const Color(0xFF4343D9);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButtonFormField<T>(
-          value: value,
-          hint: Text(hint, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
-          items: items.map((item) {
-            return DropdownMenuItem<T>(
-              value: item,
-              child: Text(item.toString(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            );
-          }).toList(),
-          onChanged: onChanged,
-          decoration: const InputDecoration(border: InputBorder.none),
+      child: DropdownButtonFormField<T>(
+        value: items.contains(value) ? value : null,
+        hint: Text(hint, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+        items: items.map((item) {
+          return DropdownMenuItem<T>(
+            value: item,
+            child: Text(item.toString(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade400),
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: primaryColor, width: 2),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
         ),
       ),
     );

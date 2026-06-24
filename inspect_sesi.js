@@ -7,7 +7,7 @@ const options = {
   }
 };
 
-const url = 'https://vqeedgzeamkzkxrrautk.supabase.co/rest/v1/sesi_absensi?select=id,mata_kuliah_id,tanggal,is_open&limit=10&order=id.desc';
+const url = 'https://vqeedgzeamkzkxrrautk.supabase.co/rest/v1/sesi_absensi?select=*&limit=1&order=id.desc';
 
 https.get(url, options, (res) => {
   let data = '';

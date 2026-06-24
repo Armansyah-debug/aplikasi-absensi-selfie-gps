@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 import '../absensi/riwayat_screen.dart';
 import '../absensi/absenScreen.dart';
@@ -8,7 +9,7 @@ import '../absensi/izin_screen.dart';
 import '../../services/supabase_service.dart';
 import '../admin/admin_screen.dart';
 import '../screens/login_screen.dart';
-import '../admin/kelola_sesi_screen.dart';
+import '../admin/dosen_buka_sesi_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -28,6 +29,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Map<String, dynamic>? _activeSesi;
   bool _fetchingSesi = false;
+
+  // Dosen Redesign Stats Variables
+  List<Map<String, dynamic>> _dosenHistory = [];
+  bool _loadingDosenStats = false;
+  double _avgAttendance = 0.0;
+  int _totalEnrolledStudents = 0;
+  List<int> _weeklyActivity = List.filled(5, 0);
+  List<Map<String, dynamic>> _dosenMKList = [];
 
   @override
   void initState() {
@@ -66,8 +75,63 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (role == 'user' || role == 'mahasiswa') {
       await _checkActiveSesi();
+    } else if (role == 'dosen') {
+      await _fetchDosenStats();
+      if (mounted) setState(() => loading = false);
     } else {
-      setState(() => loading = false);
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _fetchDosenStats() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    if (mounted) setState(() => _loadingDosenStats = true);
+    try {
+      final history = await SupabaseService.getDosenHistoryRaw(user.id);
+      final listMK = await SupabaseService.getMataKuliah(dosenId: user.id);
+      
+      // Calculate Total Mahasiswa (unique NPM count)
+      final uniqueNPMs = history.map((e) => e['npm'].toString()).toSet();
+      final totalMahasiswa = uniqueNPMs.length;
+
+      // Calculate Average Attendance
+      final totalCheckIns = history.length;
+      final hadirCount = history.where((e) => e['jenis'] == 'Hadir').length;
+      final avgAttendance = totalCheckIns == 0 ? 0.0 : (hadirCount / totalCheckIns) * 100;
+
+      // Calculate Weekly Activity (Senin - Jumat)
+      final weeklyActivity = List.filled(5, 0);
+      final now = DateTime.now();
+      for (var item in history) {
+        if (item['waktu'] != null) {
+          try {
+            final dt = DateTime.parse(item['waktu']).toLocal();
+            // Check if it's within the last 7 days
+            if (now.difference(dt).inDays < 7) {
+              final wd = dt.weekday; // 1 = Monday, 5 = Friday
+              if (wd >= 1 && wd <= 5) {
+                weeklyActivity[wd - 1]++;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _dosenHistory = history;
+          _avgAttendance = avgAttendance;
+          _totalEnrolledStudents = totalMahasiswa;
+          _weeklyActivity = weeklyActivity;
+          _dosenMKList = listMK;
+          _loadingDosenStats = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching dosen stats: $e');
+      if (mounted) setState(() => _loadingDosenStats = false);
     }
   }
 
@@ -106,6 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
     final isAdmin = role == 'admin';
     final isDosen = role == 'dosen';
     final isMahasiswa = role == 'mahasiswa' || role == 'user';
@@ -133,20 +198,24 @@ class _HomeScreenState extends State<HomeScreen> {
               if (isMahasiswa) ...[
                 _buildAttendanceStatsCard(),
                 const SizedBox(height: 24),
-                _buildSectionTitle("Aksi Presensi"),
-                const SizedBox(height: 12),
-                _buildStudentActions(),
-                const SizedBox(height: 24),
-                _buildSectionTitle("Kelas Kuliah Aktif"),
-                const SizedBox(height: 12),
                 _buildActiveSesiCard(),
+                if (user != null) ...[
+                  const SizedBox(height: 24),
+                  _buildRecentHistorySection(user.id),
+                ],
+                const SizedBox(height: 24),
+                _buildIllustrationCard(),
               ],
               if (isDosen) ...[
                 _buildDosenQuickActions(),
                 const SizedBox(height: 24),
-                _buildSectionTitle("Sesi Perkuliahan"),
+                _buildSectionTitle("Sesi Berjalan"),
                 const SizedBox(height: 12),
                 _buildDosenSesiCard(),
+                const SizedBox(height: 24),
+                    _buildSectionTitle("Jadwal Hari Ini"),
+                const SizedBox(height: 12),
+                _buildDosenScheduleList(),
               ],
               const SizedBox(height: 30),
             ],
@@ -170,8 +239,176 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ================= DYNAMIC HEADER =================
   Widget _buildHeader() {
+    if (role == 'mahasiswa' || role == 'user') {
+      final hour = DateTime.now().hour;
+      String greeting = 'Selamat pagi,';
+      if (hour >= 11 && hour < 15) {
+        greeting = 'Selamat siang,';
+      } else if (hour >= 15 && hour < 18) {
+        greeting = 'Selamat sore,';
+      } else if (hour >= 18 || hour < 5) {
+        greeting = 'Selamat malam,';
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'UniCheck',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
+                  color: Color(0xFF1A1D20),
+                ),
+              ),
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1D20), size: 24),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Belum ada notifikasi baru.')),
+                      );
+                    },
+                  ),
+                  Positioned(
+                    right: 12,
+                    top: 12,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            greeting,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            nama,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.6,
+              color: Color(0xFF1A1D20),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (role == 'dosen') {
+      final hour = DateTime.now().hour;
+      String greeting = 'Selamat Pagi,';
+      if (hour >= 11 && hour < 15) {
+        greeting = 'Selamat Siang,';
+      } else if (hour >= 15 && hour < 18) {
+        greeting = 'Selamat Sore,';
+      } else if (hour >= 18 || hour < 5) {
+        greeting = 'Selamat Malam,';
+      }
+
+      final initials = nama.isNotEmpty ? nama.substring(0, (nama.length > 2 ? 2 : nama.length)).toUpperCase() : 'DR';
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE8E8FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4343D9),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Attendance Pro',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1D20),
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1D20), size: 24),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Belum ada notifikasi baru.')),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'DASHBOARD DOSEN',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4343D9),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$greeting $nama',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.6,
+              color: Color(0xFF1A1D20),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Anda memiliki ${_dosenMKList.length} mata kuliah semester ini.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final String welcomeMessage = 'Selamat Datang,';
     final primaryColor = const Color(0xFF005F73);
-    final String welcomeMessage = role == 'dosen' ? 'Halo Bapak/Ibu Dosen' : 'Selamat Datang,';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -239,17 +476,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return const SizedBox();
 
-    final primaryColor = const Color(0xFF005F73);
-
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: SupabaseService.streamMyData(user.id),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Container(
-            height: 150,
+            height: 120,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey.shade100),
             ),
             child: const Center(child: CircularProgressIndicator()),
@@ -267,220 +502,63 @@ class _HomeScreenState extends State<HomeScreen> {
         return Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.grey.shade100),
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
           color: Colors.white,
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Circular percentage progress
-                Stack(
-                  alignment: Alignment.center,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: CircularProgressIndicator(
-                        value: total == 0 ? 0.0 : hadir / total,
-                        strokeWidth: 8,
-                        backgroundColor: Colors.grey.shade100,
-                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                    Text(
+                      "RASIO KEHADIRAN",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    Text(
-                      '${persen.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
-                      ),
+                    const Icon(
+                      Icons.insert_chart_outlined_rounded,
+                      color: Color(0xFF4343D9),
+                      size: 20,
                     ),
                   ],
                 ),
-                const SizedBox(width: 24),
-                // Detailed text stats
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Kehadiran Bulan Ini",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                const SizedBox(height: 20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '${persen.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1D20),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Total Presensi Kuliah: $total Sesi",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '+2% bln ini',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4343D9),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildMiniStat('Hadir', hadir, const Color(0xFF0A9396)),
-                          _buildMiniStat('Izin', izin, const Color(0xFF007AFF)),
-                          _buildMiniStat('Sakit', sakit, const Color(0xFFEE9B00)),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMiniStat(String label, int value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Padding(
-          padding: const EdgeInsets.only(left: 12.0),
-          child: Text(
-            "$value",
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ================= MAHASISWA ACTIONS =================
-  Widget _buildStudentActions() {
-    final primaryColor = const Color(0xFF005F73);
-
-    return Row(
-      children: [
-        Expanded(
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.grey.shade100),
-            ),
-            color: Colors.white,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AbsenScreen()),
-                ).then((_) => _fetchProfileAndSesi());
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.camera_front_rounded, color: primaryColor, size: 24),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Absen Selfie",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Selfie & Lokasi GPS",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.grey.shade100),
-            ),
-            color: Colors.white,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const IzinScreen()),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEE9B00).withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFFEE9B00), size: 24),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Izin / Sakit",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Ajukan Cuti/Sakit",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -528,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const Text(
                       "Tidak Ada Sesi Aktif",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1D20)),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -546,181 +624,595 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final mk = _activeSesi!['mata_kuliah'];
     final namaMK = mk['nama_mk'] ?? 'Mata Kuliah';
-    final pertemuanKe = _activeSesi!['pertemuan_ke']?.toString() ?? '-';
-    final materi = _activeSesi!['materi'] ?? '-';
-    final primaryColor = const Color(0xFF005F73);
+    
+    // Fallback values for layout consistency
+    final jamMulai = _activeSesi!['jam_mulai'] ?? '08:00';
+    final jamSelesai = _activeSesi!['jam_selesai'] ?? '10:00';
+    final ruangan = _activeSesi!['ruangan'] ?? 'Lab Komputer 02 (Lantai 3)';
 
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: primaryColor.withOpacity(0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.08),
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(22), topRight: Radius.circular(22)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.radio_button_checked_rounded, color: Color(0xFF0A9396), size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  "SESI ABSENSI DIBUKA",
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0A9396)),
-                ),
-                const Spacer(),
-                Text(
-                  "Pertemuan $pertemuanKe",
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryColor),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  namaMK,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Materi: $materi",
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AbsenScreen()),
-                      ).then((_) => _fetchProfileAndSesi());
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text("Absen Sekarang", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= DOSEN ACTIONS =================
-  Widget _buildDosenQuickActions() {
-    final primaryColor = const Color(0xFF005F73);
-
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.grey.shade100),
-            ),
-            color: Colors.white,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const KelolaSesiScreen()),
-                );
-              },
-              child: Padding(
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFF090909),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: 20,
+                bottom: 20,
+                child: Icon(
+                  Icons.school_rounded,
+                  size: 80,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFF4343D9),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.add_task_rounded, color: primaryColor, size: 24),
+                      child: const Text(
+                        "SESI AKTIF",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      "Kelola Sesi",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
                     Text(
-                      "Buka/Tutup Sesi",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      namaMK,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time_outlined, color: Colors.white.withOpacity(0.5), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "$jamMulai - $jamSelesai",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on_outlined, color: Colors.white.withOpacity(0.5), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            ruangan,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AbsenScreen()),
+              ).then((_) => _fetchProfileAndSesi());
+            },
+            icon: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 20),
+            label: const Text(
+              "Absen Sekarang",
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4343D9),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.grey.shade100),
-            ),
-            color: Colors.white,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
+        const SizedBox(height: 8),
+        Text(
+          "Verifikasi wajah & lokasi diperlukan",
+          style: TextStyle(
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ================= RECENT HISTORY SECTION =================
+  Widget _buildRecentHistorySection(String userId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle("Riwayat Terbaru"),
+            TextButton(
+              onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const RiwayatScreen()),
                 );
               },
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEE9B00).withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.history_rounded, color: Color(0xFFEE9B00), size: 24),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Riwayat Kelas",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Daftar Hadir Mahasiswa",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  ],
+              child: const Text(
+                "Lihat Semua",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4343D9),
                 ),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            SupabaseService.getHistoryRaw(userId),
+            SupabaseService.getSesiList(),
+            SupabaseService.getAllMK(),
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError || !snapshot.hasData) {
+              return const SizedBox();
+            }
+
+            final List<Map<String, dynamic>> rawAbsensi =
+                List<Map<String, dynamic>>.from(snapshot.data![0]);
+            final List<Map<String, dynamic>> listSesi =
+                List<Map<String, dynamic>>.from(snapshot.data![1]);
+            final List<Map<String, dynamic>> listMK =
+                List<Map<String, dynamic>>.from(snapshot.data![2]);
+
+            final filteredAbsensi = rawAbsensi.where((item) {
+              final sesiId = item['sesi_id'];
+              if (sesiId == null) return false;
+              final sesi = listSesi.firstWhere((s) => s['id'] == sesiId, orElse: () => {});
+              return sesi.isNotEmpty && sesi['mata_kuliah_id'] != null;
+            }).toList();
+
+            if (filteredAbsensi.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Center(
+                  child: Text(
+                    "Belum ada riwayat presensi",
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  ),
+                ),
+              );
+            }
+
+            final recentItems = filteredAbsensi.take(3).toList();
+
+            return Column(
+              children: recentItems.map((item) {
+                final sesiId = item['sesi_id'];
+                final sesi = listSesi.firstWhere((s) => s['id'] == sesiId, orElse: () => {});
+                final mkId = sesi['mata_kuliah_id'];
+                final mk = listMK.firstWhere((m) => m['id'] == mkId, orElse: () => {});
+                final namaMK = mk['nama_mk'] ?? 'Mata Kuliah';
+                final jenis = item['jenis'] ?? 'Hadir';
+
+                String jamStr = '-';
+                if (item['waktu'] != null) {
+                  try {
+                    final dt = DateTime.parse(item['waktu']).toLocal();
+                    final weekday = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][dt.weekday - 1];
+                    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+                    final monthStr = months[dt.month - 1];
+                    final hourStr = dt.hour.toString().padLeft(2, '0');
+                    final minStr = dt.minute.toString().padLeft(2, '0');
+                    jamStr = "$weekday, ${dt.day} $monthStr • $hourStr:$minStr";
+                  } catch (_) {}
+                }
+
+                Color badgeBg = const Color(0xFFE8F5E9);
+                Color badgeText = const Color(0xFF2E7D32);
+                String badgeLabel = 'Hadir';
+
+                if (jenis == 'Izin') {
+                  badgeBg = const Color(0xFFFFF8E1);
+                  badgeText = const Color(0xFFF57F17);
+                  badgeLabel = 'Izin';
+                } else if (jenis == 'Sakit') {
+                  badgeBg = const Color(0xFFFFEBEE);
+                  badgeText = const Color(0xFFC62828);
+                  badgeLabel = 'Sakit';
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              namaMK,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1D20),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              jamStr,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badgeLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: badgeText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ================= ILLUSTRATION PLACEHOLDER CARD =================
+  Widget _buildIllustrationCard() {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.05,
+                child: GridPaper(
+                  color: Colors.blue.shade900,
+                  divisions: 1,
+                  subdivisions: 1,
+                  interval: 40,
+                ),
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.dashboard_customize_outlined,
+                    size: 40,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Selamat Belajar & Beraktivitas!",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ================= DOSEN ACTIONS & STATISTICS =================
+  Widget _buildDosenQuickActions() {
+    final List<String> weekdays = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'];
+    int maxActivity = _weeklyActivity.reduce((curr, next) => curr > next ? curr : next);
+    if (maxActivity == 0) maxActivity = 1; // Prevent division by zero
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Buka Sesi Baru Button
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DosenBukaSesiScreen()),
+              ).then((_) => _fetchProfileAndSesi());
+            },
+            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 20),
+            label: const Text(
+              "Buka Sesi Baru",
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0051D5),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Rata-Rata Kehadiran Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      "RATA-RATA KEHADIRAN",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 0.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.trending_up_rounded,
+                    color: Color(0xFF4343D9),
+                    size: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${_avgAttendance.toStringAsFixed(1)}%',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1D20),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Total Mahasiswa Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      "TOTAL MAHASISWA",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 0.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.people_alt_outlined,
+                    color: Color(0xFF4343D9),
+                    size: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '$_totalEnrolledStudents',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1D20),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Terdaftar di ${_dosenMKList.length} mata kuliah',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Aktivitas Minggu Ini Card (Bar Chart)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "AKTIVITAS MINGGU INI",
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 120,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(5, (index) {
+                    final dayVal = _weeklyActivity[index];
+                    final pct = dayVal / maxActivity;
+                    final height = (pct * 80).clamp(6.0, 80.0);
+
+                    // Highlight Kamis or current day dynamically, or highlight index 3 (Kamis) as reference
+                    final isHighlighted = index == 3;
+
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: height,
+                          decoration: BoxDecoration(
+                            color: isHighlighted ? const Color(0xFF0051D5) : const Color(0xFFE8E8FF),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          weekdays[index],
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isHighlighted ? const Color(0xFF0051D5) : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -740,130 +1232,344 @@ class _HomeScreenState extends State<HomeScreen> {
           .eq('mata_kuliah.dosen_id', user.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            elevation: 0,
-            color: Colors.white,
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Center(child: CircularProgressIndicator()),
+          return Container(
+            height: 140,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade200),
             ),
+            child: const Center(child: CircularProgressIndicator()),
           );
         }
 
         final list = snapshot.data ?? [];
         if (list.isEmpty) {
-          return Card(
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.grey.shade100),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.event_available_rounded, color: Colors.grey.shade400, size: 24),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                  child: Icon(Icons.event_available_rounded, color: Colors.grey.shade400, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Belum Ada Sesi Dibuka",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A1D20)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Silakan buka sesi absensi baru agar mahasiswa dapat mulai absen.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final sesi = list.first;
+        final sesiId = sesi['id'];
+        final mkName = sesi['mata_kuliah']['nama_mk'] ?? 'Mata Kuliah';
+        final ruangan = sesi['ruangan'] ?? 'Ruang Kelas';
+
+        // Load dynamic attendees count for this session
+        return FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            Supabase.instance.client
+                .from('data_absensi')
+                .select('npm, nama')
+                .eq('sesi_id', sesiId)
+                .neq('jenis', 'Pelanggaran'),
+            Supabase.instance.client
+                .from('profiles')
+                .select('id')
+                .eq('role', 'user')
+                .eq('jurusan', sesi['mata_kuliah']['jurusan'])
+                .eq('semester', sesi['mata_kuliah']['semester']),
+          ]),
+          builder: (context, statsSnap) {
+            int checkedInCount = 0;
+            int enrolledCount = 0;
+            List<String> studentInitials = [];
+
+            if (statsSnap.hasData) {
+              final checkIns = List<Map<String, dynamic>>.from(statsSnap.data![0]);
+              final enrolled = List<Map<String, dynamic>>.from(statsSnap.data![1]);
+              checkedInCount = checkIns.length;
+              enrolledCount = enrolled.length;
+
+              studentInitials = checkIns.take(3).map<String>((c) {
+                final name = c['nama'] ?? '';
+                return name.isNotEmpty ? name.substring(0, (name.length > 2 ? 2 : name.length)).toUpperCase() : 'M';
+              }).toList();
+            }
+
+            return Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0051D5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: 20,
+                    bottom: 20,
+                    child: Icon(
+                      Icons.school_rounded,
+                      size: 80,
+                      color: Colors.white.withOpacity(0.06),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Belum Ada Sesi Dibuka",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "SESI BERJALAN",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withOpacity(0.9),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 16),
                         Text(
-                          "Silakan buka sesi absensi baru agar mahasiswa dapat mulai absen.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          mkName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Ruang $ruangan • Berjalan",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Student check in avatars & counter
+                        Row(
+                          children: [
+                            if (studentInitials.isNotEmpty)
+                              Row(
+                                children: studentInitials.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final text = entry.value;
+                                  return Container(
+                                    margin: EdgeInsets.only(left: index == 0 ? 0.0 : -10.0),
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: const Color(0xFF0051D5), width: 1.5),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        text,
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0051D5),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            if (studentInitials.isNotEmpty) const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "$checkedInCount/$enrolledCount Mahasiswa Hadir",
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Actions row
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: const Text('Tutup Sesi Absensi?', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  content: const Text('Yakin ingin mengakhiri sesi kuliah aktif ini?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Tutup Sesi'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                await Supabase.instance.client
+                                    .from('sesi_absensi')
+                                    .update({'is_open': false})
+                                    .eq('id', sesiId);
+                                _fetchProfileAndSesi();
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFC62828),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text(
+                              "Tutup Sesi",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-          );
-        }
+            );
+          },
+        );
+      },
+    );
+  }
 
-        final sesi = list.first;
-        final mkName = sesi['mata_kuliah']['nama_mk'] ?? 'Mata Kuliah';
-        final pertemuan = sesi['pertemuan_ke']?.toString() ?? '-';
-        final materi = sesi['materi'] ?? '-';
-        final radius = sesi['radius_meter']?.toString() ?? '50';
-
-        return Card(
-          elevation: 0,
+  // ================= DOSEN SCHEDULES =================
+  Widget _buildDosenScheduleList() {
+    if (_dosenMKList.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
           color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-            side: BorderSide(color: Colors.green.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Center(
+          child: Text(
+            "Belum ada jadwal mengajar",
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      );
+    }
+
+    final List<String> times = ['08:00\nWIB', '13:30\nWIB', '15:30\nWIB'];
+    final List<String> fallbacks = ['Lab Komputer 1', 'Ruang 205', 'Daring via Zoom'];
+
+    return Column(
+      children: List.generate(_dosenMKList.length, (index) {
+        final mk = _dosenMKList[index];
+        final name = mk['nama_mk'] ?? 'Mata Kuliah';
+        final room = fallbacks[index % fallbacks.length];
+        final timeStr = times[index % times.length];
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                width: 56,
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.08),
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(22), topRight: Radius.circular(22)),
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.check_circle_rounded, color: Color(0xFF0A9396), size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      "SESI ABSENSI AKTIF",
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0A9396)),
-                    ),
-                  ],
+                child: Text(
+                  timeStr,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1D20),
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(20.0),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mkName,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "Materi: $materi",
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                      name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1D20),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Pertemuan Ke: $pertemuan  |  Radius: ${radius}m",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const KelolaSesiScreen()),
-                          ).then((_) => _fetchProfileAndSesi());
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF3B30),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text("Tutup Sesi Absensi", style: TextStyle(fontWeight: FontWeight.bold)),
+                      '$room • Mendatang',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -872,7 +1578,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         );
-      },
+      }),
     );
   }
 }

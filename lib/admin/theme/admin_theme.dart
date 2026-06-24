@@ -8,10 +8,10 @@ class AdminTheme {
   // ─────────────────────────────────────────────
   // Brand Colors
   // ─────────────────────────────────────────────
-  static const Color primary = Color(0xFF1A56DB);
-  static const Color primaryDark = Color(0xFF1E3A8A);
-  static const Color primaryLight = Color(0xFFEFF6FF);
-  static const Color primaryMid = Color(0xFF3B82F6);
+  static const Color primary = Color(0xFF4343D9);
+  static const Color primaryDark = Color(0xFF2E2E99);
+  static const Color primaryLight = Color(0xFFE8E8FF);
+  static const Color primaryMid = Color(0xFF5B5BF0);
 
   // ─────────────────────────────────────────────
   // Status Colors
@@ -30,7 +30,7 @@ class AdminTheme {
   // ─────────────────────────────────────────────
   // Neutral Colors
   // ─────────────────────────────────────────────
-  static const Color bg = Color(0xFFF1F5F9);
+  static const Color bg = Color(0xFFF8FAFC);
   static const Color surface = Colors.white;
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderLight = Color(0xFFF8FAFC);
@@ -42,7 +42,7 @@ class AdminTheme {
   // Sidebar
   // ─────────────────────────────────────────────
   static const Color sidebarBg = Colors.white;
-  static const Color sidebarActive = Color(0xFF1A56DB);
+  static const Color sidebarActive = Color(0xFF4343D9);
   static const Color sidebarActiveText = Colors.white;
   static const Color sidebarInactiveText = Color(0xFF64748B);
   static const double sidebarWidth = 220;
@@ -89,6 +89,24 @@ class AdminTheme {
     letterSpacing: 0.5,
   );
 
+  static const TextStyle tableHeader = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: textMuted,
+    letterSpacing: 0.5,
+  );
+
+  static const TextStyle tableCell = TextStyle(
+    fontSize: 12,
+    color: textPrimary,
+  );
+
+  static const TextStyle tableCellBold = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
   // ─────────────────────────────────────────────
   // Card Decorations
   // ─────────────────────────────────────────────
@@ -119,6 +137,18 @@ class AdminTheme {
             offset: const Offset(0, 4),
           ),
         ],
+      );
+
+  // Table row decoration (alternating)
+  static BoxDecoration tableRowDecoration({bool isEven = true, bool isHovered = false}) => BoxDecoration(
+        color: isHovered
+            ? primaryLight
+            : isEven
+                ? Colors.white
+                : bg.withOpacity(0.5),
+        border: const Border(
+          bottom: BorderSide(color: border, width: 0.5),
+        ),
       );
 
   // ─────────────────────────────────────────────
@@ -186,11 +216,15 @@ class AdminTheme {
   }
 
   /// Status badge for kehadiran
-  static Widget statusBadge(String status) {
+  static Widget statusBadge(String status, {double fontSize = 10}) {
     Color bg;
     Color fg;
     switch (status.toLowerCase()) {
       case 'hadir':
+        bg = successLight;
+        fg = successDark;
+        break;
+      case 'aktif':
         bg = successLight;
         fg = successDark;
         break;
@@ -203,8 +237,54 @@ class AdminTheme {
         fg = warningDark;
         break;
       case 'fake gps':
+      case 'pelanggaran':
+      case 'ditolak (fake gps)':
         bg = dangerLight;
         fg = danger;
+        break;
+      case 'berisiko':
+        bg = dangerLight;
+        fg = danger;
+        break;
+      case 'tinggi':
+        bg = dangerLight;
+        fg = danger;
+        break;
+      case 'sedang':
+        bg = warningLight;
+        fg = warningDark;
+        break;
+      case 'rendah':
+        bg = const Color(0xFFDEEBFF);
+        fg = primaryDark;
+        break;
+      case 'cuti':
+        bg = const Color(0xFFF1F5F9);
+        fg = textSecondary;
+        break;
+      case 'on leave':
+        bg = warningLight;
+        fg = warningDark;
+        break;
+      case 'aman':
+        bg = successLight;
+        fg = successDark;
+        break;
+      case 'sempurna':
+        bg = const Color(0xFFD1FAE5);
+        fg = const Color(0xFF065F46);
+        break;
+      case 'peringatan':
+        bg = warningLight;
+        fg = warningDark;
+        break;
+      case 'risiko':
+        bg = dangerLight;
+        fg = danger;
+        break;
+      case 'selesai':
+        bg = const Color(0xFFF1F5F9);
+        fg = textSecondary;
         break;
       default:
         bg = const Color(0xFFF1F5F9);
@@ -219,9 +299,47 @@ class AdminTheme {
       child: Text(
         status,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: fg,
+        ),
+      ),
+    );
+  }
+
+  /// Live dot indicator
+  static Widget liveDot({Color color = success, String label = 'Live'}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: color.withOpacity(0.4), blurRadius: 6),
+            ],
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
+  /// Section divider with title
+  static Widget sectionDivider(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, top: 16, bottom: 6),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1,
+          color: textMuted,
         ),
       ),
     );

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 class SupabaseService {
   static final _supabase = Supabase.instance.client;
 
@@ -45,6 +44,32 @@ class SupabaseService {
     await _supabase.from('profiles').update({
       'nama': nama,
       'npm': npm,
+    }).eq('id', userId);
+  }
+
+  static Future<void> updateMahasiswaAdmin({
+    required String userId,
+    required String nama,
+    required String npm,
+    required String jurusan,
+    required int semester,
+  }) async {
+    await _supabase.from('profiles').update({
+      'nama': nama,
+      'npm': npm,
+      'jurusan': jurusan,
+      'semester': semester,
+    }).eq('id', userId);
+  }
+
+  static Future<void> updateDosenAdmin({
+    required String userId,
+    required String nama,
+    required String nidn,
+  }) async {
+    await _supabase.from('profiles').update({
+      'nama': nama,
+      'npm': nidn, // NIDN disimpan di field npm
     }).eq('id', userId);
   }
 
@@ -296,7 +321,7 @@ class SupabaseService {
     try {
       final res = await _supabase
           .from('profiles')
-          .select('id, nama')
+          .select('id, nama, npm')
           .eq('role', 'dosen')
           .order('nama');
       return List<Map<String, dynamic>>.from(res);
@@ -420,6 +445,28 @@ class SupabaseService {
     } catch (e) {
       debugPrint('DELETE ERROR: $e');
       rethrow;
+    }
+  }
+
+  // =====================================================
+  // JURUSAN DINAMIS
+  // =====================================================
+  static Future<List<String>> getJurusanList() async {
+    try {
+      final res = await _supabase.from('mata_kuliah').select('jurusan');
+      final list = List<Map<String, dynamic>>.from(res);
+      final jurusanSet = list
+          .map((e) => e['jurusan'] as String?)
+          .whereType<String>()
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      
+      final sortedList = jurusanSet.toList()..sort();
+      return sortedList;
+    } catch (e) {
+      debugPrint('GET JURUSAN LIST ERROR: $e');
+      return [];
     }
   }
 }

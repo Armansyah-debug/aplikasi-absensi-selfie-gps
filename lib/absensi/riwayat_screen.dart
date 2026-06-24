@@ -12,6 +12,11 @@ class RiwayatScreen extends StatefulWidget {
 
 class _RiwayatScreenState extends State<RiwayatScreen> {
   String role = 'user';
+  String _activeFilter = 'Bulan Ini';
+
+  // Dosen Redesign Search & Filter
+  String _dosenSearchQuery = '';
+  int? _dosenSelectedMKId;
 
   @override
   void initState() {
@@ -45,17 +50,27 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
-          isAdmin ? 'Riwayat Absensi Global' : 'Riwayat Kehadiran Saya',
+          (isAdmin || isDosen) ? (isAdmin ? 'Riwayat Absensi Global' : 'Riwayat Kehadiran Saya') : 'UniCheck',
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             fontSize: 20,
-            letterSpacing: -0.5,
+            letterSpacing: -0.6,
+            color: Color(0xFF1A1D20),
           ),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
+        foregroundColor: const Color(0xFF1A1D20),
         elevation: 0,
         centerTitle: false,
+        leading: (isAdmin || isDosen)
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+                child: const CircleAvatar(
+                  backgroundColor: Color(0xFFF1F2F6),
+                  child: Icon(Icons.person_outline_rounded, color: Color(0xFF1A1D20), size: 20),
+                ),
+              ),
       ),
       body: FutureBuilder<List<dynamic>>(
         future: Future.wait([
@@ -87,7 +102,17 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           final List<Map<String, dynamic>> listMK =
               List<Map<String, dynamic>>.from(snapshot.data![2]);
 
-          // ================= GROUPING BY MATA KULIAH =================
+          // ================= MAHASISWA REDESIGN VIEW =================
+          if (!isAdmin && !isDosen) {
+            return _buildMahasiswaHistoryView(rawAbsensi, listSesi, listMK);
+          }
+
+          // ================= DOSEN REDESIGN VIEW =================
+          if (isDosen) {
+            return _buildDosenHistoryView(rawAbsensi, listSesi, listMK);
+          }
+
+          // ================= GROUPING BY MATA KULIAH (ADMIN) =================
           final Map<int, List<Map<String, dynamic>>> mkGroups = {};
           
           for (var item in rawAbsensi) {
@@ -478,6 +503,416 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     );
   }
 
+  // ================= MAHASISWA HISTORY VIEW =================
+  Widget _buildMahasiswaHistoryView(
+    List<Map<String, dynamic>> rawAbsensi,
+    List<Map<String, dynamic>> listSesi,
+    List<Map<String, dynamic>> listMK,
+  ) {
+    // 1. Filter out Absen Umum
+    final filteredAbsensi = rawAbsensi.where((item) {
+      final sesiId = item['sesi_id'];
+      if (sesiId == null) return false;
+      final sesi = listSesi.firstWhere((s) => s['id'] == sesiId, orElse: () => {});
+      return sesi.isNotEmpty && sesi['mata_kuliah_id'] != null;
+    }).toList();
+
+    // 2. Apply Pill Filter (Bulan Ini / Semester Ini)
+    final now = DateTime.now();
+    final displayedAbsensi = filteredAbsensi.where((item) {
+      if (_activeFilter == 'Bulan Ini') {
+        if (item['waktu'] == null) return false;
+        try {
+          final dt = DateTime.parse(item['waktu']).toLocal();
+          return dt.month == now.month && dt.year == now.year;
+        } catch (_) {
+          return false;
+        }
+      }
+      return true; // "Semester Ini" or "Pilih Rentang" shows all
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title & Filter Button Row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Riwayat",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1D20),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Rekap absensi perkuliahan Anda.",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Horizontal filter pills
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['Bulan Ini', 'Semester Ini', 'Pilih Rentang'].map((pill) {
+                final isSelected = _activeFilter == pill;
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => setState(() => _activeFilter = pill),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF4343D9) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF4343D9) : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Text(
+                        pill,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? Colors.white : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Flat Card List
+        Expanded(
+          child: displayedAbsensi.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history_toggle_off_rounded, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Tidak ada riwayat untuk periode ini.",
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  itemCount: displayedAbsensi.length,
+                  itemBuilder: (context, index) {
+                    final item = displayedAbsensi[index];
+                    final sesiId = item['sesi_id'];
+                    final sesi = listSesi.firstWhere((s) => s['id'] == sesiId, orElse: () => {});
+                    final mkId = sesi['mata_kuliah_id'];
+                    final mk = listMK.firstWhere((m) => m['id'] == mkId, orElse: () => {});
+                    final namaMK = mk['nama_mk'] ?? 'Mata Kuliah';
+                    final jenis = item['jenis'] ?? 'Hadir';
+                    final ruangan = sesi['ruangan'] ?? 'Lab Komputer 03';
+
+                    // Parse date and time
+                    String tglStr = '-';
+                    String jamRangeStr = '08:00 - 09:40';
+                    String jamAbsen = '-';
+                    if (item['waktu'] != null) {
+                      try {
+                        final dt = DateTime.parse(item['waktu']).toLocal();
+                        final weekday = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][dt.weekday - 1];
+                        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+                        tglStr = "$weekday, ${dt.day} ${months[dt.month - 1]} ${dt.year}";
+                        jamAbsen = DateFormat('HH:mm').format(dt);
+                        
+                        final startHour = sesi['jam_mulai'] ?? '08:00';
+                        final endHour = sesi['jam_selesai'] ?? '09:40';
+                        jamRangeStr = "$startHour - $endHour";
+                      } catch (_) {}
+                    }
+
+                    // Capitalized soft badges
+                    Color badgeBg = const Color(0xFFE8F5E9);
+                    Color badgeText = const Color(0xFF2E7D32);
+                    String badgeLabel = 'HADIR';
+
+                    if (jenis == 'Izin') {
+                      badgeBg = const Color(0xFFFFF8E1);
+                      badgeText = const Color(0xFFF57F17);
+                      badgeLabel = 'IZIN';
+                    } else if (jenis == 'Sakit') {
+                      badgeBg = const Color(0xFFFFEBEE);
+                      badgeText = const Color(0xFFC62828);
+                      badgeLabel = 'SAKIT';
+                    } else if (jenis == 'Pelanggaran') {
+                      badgeBg = const Color(0xFFFFEBEE);
+                      badgeText = const Color(0xFFC62828);
+                      badgeLabel = 'DITOLAK';
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  namaMK,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A1D20),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: badgeBg,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  badgeLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: badgeText,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                tglStr,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                              ),
+                              const SizedBox(width: 16),
+                              Icon(Icons.access_time_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                jamRangeStr,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ruangan,
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              InkWell(
+                                onTap: () => _showDetailBottomSheet(context, item, namaMK, jamAbsen),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                  child: Row(
+                                    children: const [
+                                      Text(
+                                        "Detail",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF4343D9),
+                                        ),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF4343D9)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  // ================= DETAIL BOTTOM SHEET =================
+  void _showDetailBottomSheet(BuildContext context, Map<String, dynamic> item, String namaMK, String jamAbsen) {
+    final fotoPath = item['foto_path'];
+    final fotoUrl = SupabaseService.getFotoUrl(fotoPath ?? '');
+    final alamat = item['alamat'] ?? '-';
+    final jenis = item['jenis'] ?? 'Hadir';
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Detail Presensi",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1D20)),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      color: Colors.grey.shade50,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: fotoUrl.isNotEmpty
+                          ? Image.network(fotoUrl, fit: BoxFit.cover)
+                          : const Icon(Icons.person_rounded, size: 40, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          namaMK,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1A1D20)),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Status: $jenis",
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Jam: $jamAbsen WIB",
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "LOKASI TERVERIFIKASI",
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF4343D9)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        alamat,
+                        style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF1A1D20)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // ================= IMAGE PREVIEW =================
   void _showImage(BuildContext context, String url) {
     showDialog(
@@ -487,6 +922,345 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           child: Image.network(url),
         ),
       ),
+    );
+  }
+
+  // ================= DOSEN REDESIGN VIEW =================
+  Widget _buildDosenHistoryView(
+    List<Map<String, dynamic>> rawAbsensi,
+    List<Map<String, dynamic>> listSesi,
+    List<Map<String, dynamic>> listMK,
+  ) {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return const SizedBox();
+
+    // 1. Get lecturer's Mata Kuliah list
+    final dosenMKs = listMK.where((mk) => mk['dosen_id'] == user.id).toList();
+    final dosenMKIds = dosenMKs.map((e) => e['id'] as int).toSet();
+
+    // 2. Get sessions belonging to these Mata Kuliahs
+    final dosenSesiList = listSesi.where((sesi) {
+      final mkId = sesi['mata_kuliah_id'];
+      if (mkId == null) return false;
+      return dosenMKIds.contains(mkId);
+    }).toList();
+
+    // 3. Filter by selected Mata Kuliah chip
+    var filteredSesi = dosenSesiList;
+    if (_dosenSelectedMKId != null) {
+      filteredSesi = filteredSesi.where((s) => s['mata_kuliah_id'] == _dosenSelectedMKId).toList();
+    }
+
+    // 4. Filter by Search Query
+    if (_dosenSearchQuery.isNotEmpty) {
+      filteredSesi = filteredSesi.where((s) {
+        final mk = listMK.firstWhere((m) => m['id'] == s['mata_kuliah_id'], orElse: () => {});
+        final mkName = (mk['nama_mk'] ?? '').toString().toLowerCase();
+        return mkName.contains(_dosenSearchQuery.toLowerCase());
+      }).toList();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title & Semester Row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Riwayat Presensi",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1D20),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Daftar riwayat sesi perkuliahan Anda.",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8E8FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  "Semester Ganjil 2024",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4343D9),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: TextField(
+              onChanged: (val) => setState(() => _dosenSearchQuery = val),
+              decoration: InputDecoration(
+                hintText: "Cari sesi atau mata kuliah...",
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 20),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
+
+        // Filter Pills
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // "Semua Sesi" pill
+                GestureDetector(
+                  onTap: () => setState(() => _dosenSelectedMKId = null),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _dosenSelectedMKId == null ? const Color(0xFF4343D9) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _dosenSelectedMKId == null ? const Color(0xFF4343D9) : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Text(
+                      "Semua Sesi",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: _dosenSelectedMKId == null ? FontWeight.bold : FontWeight.w500,
+                        color: _dosenSelectedMKId == null ? Colors.white : Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ),
+                // Mata Kuliah pills
+                ...dosenMKs.map((mk) {
+                  final mkId = mk['id'] as int;
+                  final isSelected = _dosenSelectedMKId == mkId;
+                  final mkName = mk['nama_mk'] ?? 'Mata Kuliah';
+                  return GestureDetector(
+                    onTap: () => setState(() => _dosenSelectedMKId = mkId),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF4343D9) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF4343D9) : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Text(
+                        mkName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // List Kronologis Sesi
+        Expanded(
+          child: filteredSesi.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history_toggle_off_rounded, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Tidak ada riwayat sesi ditemukan.",
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  itemCount: filteredSesi.length,
+                  itemBuilder: (context, index) {
+                    final sesi = filteredSesi[index];
+                    final mkId = sesi['mata_kuliah_id'];
+                    final mk = listMK.firstWhere((m) => m['id'] == mkId, orElse: () => {});
+                    final namaMK = mk['nama_mk'] ?? 'Mata Kuliah';
+                    final ruangan = sesi['ruangan'] ?? 'Ruang Kelas';
+
+                    // Find total check-ins in rawAbsensi for this session
+                    final sessionCheckIns = rawAbsensi.where((item) => item['sesi_id'] == sesi['id'] && item['jenis'] != 'Pelanggaran').toList();
+                    final checkInCount = sessionCheckIns.length;
+                    
+                    // Ratio estimation
+                    final classSize = checkInCount > 35 ? checkInCount : 40; 
+
+                    // Status and styling
+                    Color badgeBg = const Color(0xFFE8F5E9);
+                    Color badgeText = const Color(0xFF2E7D32);
+                    String badgeLabel = 'HADIR';
+
+                    final ratio = checkInCount / classSize;
+                    if (ratio >= 0.95) {
+                      badgeBg = const Color(0xFFE8F5E9);
+                      badgeText = const Color(0xFF2E7D32);
+                      badgeLabel = 'SEMPURNA';
+                    } else if (ratio < 0.75) {
+                      badgeBg = const Color(0xFFFFEBEE);
+                      badgeText = const Color(0xFFC62828);
+                      badgeLabel = 'RENDAH';
+                    } else {
+                      badgeBg = const Color(0xFFE8E8FF);
+                      badgeText = const Color(0xFF4343D9);
+                      badgeLabel = 'HADIR';
+                    }
+
+                    // Format date
+                    String tglStr = '-';
+                    String jamRangeStr = '08:00 - 10:30';
+                    if (sesi['tanggal'] != null) {
+                      try {
+                        final dt = DateTime.parse(sesi['tanggal']).toLocal();
+                        final weekday = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][dt.weekday - 1];
+                        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+                        tglStr = "$weekday, ${dt.day} ${months[dt.month - 1]} ${dt.year}";
+
+                        final startHour = sesi['jam_mulai'] ?? '08:00';
+                        final endHour = sesi['jam_selesai'] ?? '10:30';
+                        jamRangeStr = "$startHour - $endHour";
+                      } catch (_) {}
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  namaMK,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A1D20),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: badgeBg,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  badgeLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: badgeText,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                tglStr,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              ),
+                              const SizedBox(width: 16),
+                              Icon(Icons.access_time_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                jamRangeStr,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ruangan,
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "$checkInCount/$classSize Hadir",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4343D9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

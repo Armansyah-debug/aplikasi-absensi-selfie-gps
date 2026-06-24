@@ -153,54 +153,100 @@ class _IzinScreenState extends State<IzinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text(
-          "Izin / Sakit",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          "Pengajuan Izin",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1A1D20)),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: const Color(0xFF1A1D20),
+        actions: const [
+          SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
           // JENIS PENGAJUAN
           const Text(
-            "Pilih Jenis",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            "JENIS PENGAJUAN",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: ["Izin", "Sakit"].map((e) {
-              final isSelected = _selectedJenis == e;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedJenis = e),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF007AFF) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF007AFF) : Colors.grey.shade300,
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F2F6),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedJenis = "Izin"),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedJenis == "Izin" ? const Color(0xFF090909) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        e,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.calendar_today_rounded,
+                            size: 16,
+                            color: _selectedJenis == "Izin" ? Colors.white : Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Izin",
+                            style: TextStyle(
+                              color: _selectedJenis == "Izin" ? Colors.white : Colors.grey.shade700,
+                              fontWeight: _selectedJenis == "Izin" ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              );
-            }).toList(),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedJenis = "Sakit"),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedJenis == "Sakit" ? const Color(0xFF090909) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.local_hospital_rounded,
+                            size: 16,
+                            color: _selectedJenis == "Sakit" ? Colors.white : Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Sakit",
+                            style: TextStyle(
+                              color: _selectedJenis == "Sakit" ? Colors.white : Colors.grey.shade700,
+                              fontWeight: _selectedJenis == "Sakit" ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -212,21 +258,29 @@ class _IzinScreenState extends State<IzinScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Mulai", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "DARI TANGGAL",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                    ),
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () => _selectDate(context, true),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Text(DateFormat('dd/MM/yyyy').format(_startDate)),
+                            Text(
+                              DateFormat('MM/dd/yyyy').format(_startDate),
+                              style: const TextStyle(color: Color(0xFF1A1D20), fontSize: 14),
+                            ),
+                            Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey.shade600),
                           ],
                         ),
                       ),
@@ -239,21 +293,29 @@ class _IzinScreenState extends State<IzinScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Akhir", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "SAMPAI TANGGAL",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                    ),
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () => _selectDate(context, false),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Text(DateFormat('dd/MM/yyyy').format(_endDate)),
+                            Text(
+                              DateFormat('MM/dd/yyyy').format(_endDate),
+                              style: const TextStyle(color: Color(0xFF1A1D20), fontSize: 14),
+                            ),
+                            Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey.shade600),
                           ],
                         ),
                       ),
@@ -268,84 +330,292 @@ class _IzinScreenState extends State<IzinScreen> {
 
           // ALASAN
           const Text(
-            "Alasan",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            "ALASAN / KETERANGAN",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           TextField(
             controller: _alasanController,
             maxLines: 4,
+            style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
-              hintText: "Masukkan alasan...",
+              hintText: "Berikan detail alasan pengajuan Anda...",
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(
+              contentPadding: const EdgeInsets.all(16),
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
             ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // UPLOAD BUKTI
+          const Text(
+            "UPLOAD BUKTI",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickImage,
+            child: _imageBytes != null
+                ? Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                    ),
+                  )
+                : CustomPaint(
+                    painter: DashedBorderPainter(color: Colors.grey.shade300, strokeWidth: 1.5, gap: 6.0),
+                    child: Container(
+                      height: 160,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE8E8FF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.cloud_upload_outlined,
+                              color: Color(0xFF4343D9),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            "Klik untuk pilih file atau seret kemari",
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1D20)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "PDF, JPG, atau PNG (Maks. 5MB)",
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
 
           const SizedBox(height: 32),
 
-          // LAMPIRAN (WAJIB)
-          const Text(
-            "Lampiran Foto (Wajib)",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _pickImage,
-            child: Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _imageBytes != null ? const Color(0xFF007AFF) : Colors.grey.shade300, 
-                  style: BorderStyle.solid
-                ),
-              ),
-              child: _imageBytes != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_photo_alternate_outlined, color: Colors.grey.shade400, size: 40),
-                        const SizedBox(height: 8),
-                        Text("Tambah Foto Bukti", style: TextStyle(color: Colors.grey.shade400)),
-                      ],
-                    ),
-            ),
-          ),
-
-          const SizedBox(height: 40),
-
           // BUTTON SUBMIT
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 52,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF007AFF),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                backgroundColor: const Color(0xFF090909),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
+                shadowColor: Colors.black26,
               ),
               onPressed: _loading ? null : _submit,
               child: _loading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text(
-                      "KIRIM PENGAJUAN",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      "Kirim Pengajuan",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                     ),
             ),
           ),
+
+          // STATUS TERKINI
+          const SizedBox(height: 36),
+          const Text(
+            "Status Terkini",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1D20)),
+          ),
+          const SizedBox(height: 12),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: SupabaseService.streamMyData(Supabase.instance.client.auth.currentUser?.id ?? ''),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final list = snapshot.data ?? [];
+              final izinSakitList = list.where((item) => item['jenis'] == 'Izin' || item['jenis'] == 'Sakit').toList();
+
+              if (izinSakitList.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Belum ada pengajuan izin atau sakit.",
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: izinSakitList.map((item) {
+                  final jenis = item['jenis'] ?? 'Izin';
+                  final alasan = item['alasan'] ?? '';
+                  final alamat = item['alamat'] ?? '';
+                  final status = item['status'] ?? 'Menunggu';
+
+                  IconData icon = Icons.edit_calendar_rounded;
+                  if (jenis == 'Sakit') {
+                    icon = Icons.local_hospital_outlined;
+                  }
+
+                  Color badgeBg = const Color(0xFFE8F0FE);
+                  Color badgeText = const Color(0xFF1A73E8);
+                  String badgeLabel = 'Menunggu';
+
+                  if (status == 'Disetujui' || status == 'Hadir' || status == 'Selesai') {
+                    badgeBg = const Color(0xFFE8F5E9);
+                    badgeText = const Color(0xFF2E7D32);
+                    badgeLabel = 'Selesai';
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(icon, color: Colors.grey.shade600, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "$jenis - $alasan",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1D20),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                alamat,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            badgeLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: badgeText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+}
+
+// ================= CUSTOM DASHED BORDER PAINTER =================
+class DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+
+  DashedBorderPainter({
+    this.color = Colors.grey,
+    this.strokeWidth = 1.0,
+    this.gap = 5.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(16),
+      ));
+
+    final dashWidth = gap;
+    final dashSpace = gap;
+
+    final Path dashedPath = Path();
+    double distance = 0.0;
+
+    for (final PathMetric metric in path.computeMetrics()) {
+      while (distance < metric.length) {
+        dashedPath.addPath(
+          metric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
