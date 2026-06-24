@@ -497,15 +497,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final data = snapshot.data!;
         
-        // Perhitungan akademis (Sinkron dengan Mahasiswa Risiko)
-        // Kehadiran Sah = Hadir, Izin, Sakit
-        final kehadiranSah = data.where((e) => 
-            e['jenis'] == 'Hadir' || e['jenis'] == 'Izin' || e['jenis'] == 'Sakit').length;
-            
-        // Total Records (termasuk Alpa, tidak termasuk Pelanggaran)
+        final hadir = data.where((e) => e['jenis'] == 'Hadir').length;
+        
+        // Total Records (termasuk Hadir, Izin, Sakit, Alpa, tidak termasuk Pelanggaran)
         final totalRecords = data.where((e) => e['jenis'] != 'Pelanggaran').length;
         
-        final persen = totalRecords == 0 ? 0.0 : (kehadiranSah / totalRecords) * 100;
+        final persen = totalRecords == 0 ? 0.0 : (hadir / totalRecords) * 100;
 
         return Card(
           elevation: 0,
