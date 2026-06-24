@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../screens/notifikasi_screen.dart';
 import 'package:intl/intl.dart';
 
 import '../absensi/riwayat_screen.dart';
@@ -270,8 +271,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1D20), size: 24),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Belum ada notifikasi baru.')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
                       );
                     },
                   ),
@@ -367,8 +369,9 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1D20), size: 24),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Belum ada notifikasi baru.')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
                   );
                 },
               ),
@@ -461,8 +464,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Belum ada notifikasi baru.')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
               );
             },
           ),

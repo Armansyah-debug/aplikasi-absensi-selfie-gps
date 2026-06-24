@@ -996,9 +996,9 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                   color: const Color(0xFFE8E8FF),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  "Semester Ganjil 2024",
-                  style: TextStyle(
+                child: Text(
+                  "Semester Ganjil ${DateTime.now().year}",
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF4343D9),

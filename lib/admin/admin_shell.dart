@@ -114,10 +114,10 @@ class _AdminShellState extends State<AdminShell> {
                     color: AdminTheme.surface,
                     border: Border(top: BorderSide(color: AdminTheme.border)),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
-                      '© 2024 UniCheck System • Direktorat Akademik',
-                      style: TextStyle(
+                      '© ${DateTime.now().year} UniCheck System • Direktorat Akademik',
+                      style: const TextStyle(
                         fontSize: 11,
                         color: AdminTheme.textMuted,
                         fontWeight: FontWeight.w500,

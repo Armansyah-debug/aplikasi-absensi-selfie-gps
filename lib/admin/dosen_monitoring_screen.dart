@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../screens/notifikasi_screen.dart';
 import '../services/supabase_service.dart';
 import 'dosen_buka_sesi_screen.dart';
 
@@ -219,8 +220,9 @@ class _DosenMonitoringScreenState extends State<DosenMonitoringScreen>
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1D20), size: 24),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Belum ada notifikasi baru.')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
               );
             },
           ),

@@ -41,8 +41,8 @@ class _IzinScreenState extends State<IzinScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStart ? _startDate : _endDate,
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2030),
+      firstDate: DateTime(DateTime.now().year),
+      lastDate: DateTime(DateTime.now().year + 6),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(

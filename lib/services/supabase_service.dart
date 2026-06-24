@@ -469,4 +469,34 @@ class SupabaseService {
       return [];
     }
   }
+  // =====================================================
+  // PENGUMUMAN / NOTIFIKASI
+  // =====================================================
+  static Future<void> createPengumuman({
+    required String judul,
+    required String pesan,
+  }) async {
+    try {
+      await _supabase.from('pengumuman').insert({
+        'judul': judul,
+        'pesan': pesan,
+      });
+    } catch (e) {
+      debugPrint('CREATE PENGUMUMAN ERROR: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getPengumuman() async {
+    try {
+      final res = await _supabase
+          .from('pengumuman')
+          .select()
+          .order('tanggal', ascending: false);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('GET PENGUMUMAN ERROR: $e');
+      return [];
+    }
+  }
 }

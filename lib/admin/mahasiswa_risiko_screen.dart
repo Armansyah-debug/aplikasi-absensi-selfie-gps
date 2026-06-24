@@ -41,8 +41,13 @@ class _MahasiswaRisikoScreenState extends State<MahasiswaRisikoScreen> {
     if (npm == null || npm.isEmpty) return 0;
     final records = _allAbsensi.where((a) => a['npm'] == npm && a['jenis'] != 'Pelanggaran').toList();
     if (records.isEmpty) return 0;
-    final hadir = records.where((a) => a['jenis'] == 'Hadir').length;
-    return (hadir / records.length) * 100;
+    
+    // Perhitungan akademis: Hadir, Izin, dan Sakit dianggap sebagai kehadiran sah.
+    // Alpa (tanpa keterangan) adalah satu-satunya yang menurunkan persentase.
+    final kehadiranSah = records.where((a) => 
+        a['jenis'] == 'Hadir' || a['jenis'] == 'Izin' || a['jenis'] == 'Sakit').length;
+        
+    return (kehadiranSah / records.length) * 100;
   }
 
   int _getAbsensiCount(String? npm) {

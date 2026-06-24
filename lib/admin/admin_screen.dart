@@ -188,7 +188,98 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           ),
         ),
+        ElevatedButton.icon(
+          onPressed: () => _showBroadcastDialog(context),
+          icon: const Icon(Icons.campaign_rounded, size: 16),
+          label: const Text('Broadcast Pengumuman'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AdminTheme.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
       ],
+    );
+  }
+
+  void _showBroadcastDialog(BuildContext context) {
+    final judulCtrl = TextEditingController();
+    final pesanCtrl = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.campaign_rounded, color: AdminTheme.primary),
+              SizedBox(width: 8),
+              Text('Broadcast Pengumuman', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: judulCtrl,
+                  decoration: AdminTheme.inputDecoration(label: 'Judul Pengumuman', prefixIcon: Icons.title_rounded),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: pesanCtrl,
+                  maxLines: 4,
+                  decoration: AdminTheme.inputDecoration(label: 'Isi Pesan', prefixIcon: Icons.message_rounded).copyWith(alignLabelWithHint: true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: AdminTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (judulCtrl.text.trim().isEmpty || pesanCtrl.text.trim().isEmpty) return;
+                      setStateDlg(() => isSubmitting = true);
+                      try {
+                        await SupabaseService.createPengumuman(
+                          judul: judulCtrl.text.trim(),
+                          pesan: pesanCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Pengumuman berhasil disiarkan!')),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDlg(() => isSubmitting = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal: $e')),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: isSubmitting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Kirim Broadcast'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

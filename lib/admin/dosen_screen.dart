@@ -258,7 +258,7 @@ class _DosenScreenState extends State<DosenScreen> {
                     )),
                     const SizedBox(height: 6),
                     const Text(
-                      'Comprehensive management of university academic staff and teaching schedules.',
+                      'Comprehensive management of UniCheck academic staff and teaching schedules.',
                       style: AdminTheme.body,
                     ),
                     const SizedBox(height: 16),

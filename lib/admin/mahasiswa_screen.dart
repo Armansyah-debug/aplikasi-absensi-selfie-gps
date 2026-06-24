@@ -502,7 +502,7 @@ class _MahasiswaScreenState extends State<MahasiswaScreen> {
                                     Text(nama, maxLines: 1, overflow: TextOverflow.ellipsis,
                                       style: AdminTheme.tableCellBold),
                                     if (semester != null)
-                                      Text('Angkatan ${semester > 2 ? 2020 + (semester ~/ 2) : 2024}',
+                                      Text('Angkatan ${semester > 2 ? 2020 + (semester ~/ 2) : DateTime.now().year}',
                                         style: const TextStyle(fontSize: 10, color: AdminTheme.textMuted)),
                                   ],
                                 ),
