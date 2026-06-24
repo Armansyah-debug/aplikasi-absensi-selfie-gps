@@ -194,6 +194,8 @@ class _DosenMonitoringScreenState extends State<DosenMonitoringScreen>
           ...student,
           'waktu': checkInItem['waktu'],
           'status': checkInItem['status'] ?? 'Hadir',
+          'alasan': checkInItem['alasan'] ?? '-',
+          'foto_path': checkInItem['foto_path'],
         });
       } else {
         belumHadirStudents.add(student);
@@ -529,9 +531,12 @@ class _DosenMonitoringScreenState extends State<DosenMonitoringScreen>
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.shade200),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
+              Row(
+                children: [
+                  Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
@@ -615,8 +620,96 @@ class _DosenMonitoringScreenState extends State<DosenMonitoringScreen>
                 ),
             ],
           ),
-        );
+          if (isHadir && (student['status'] == 'Izin' || student['status'] == 'Sakit')) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Alasan: ${student['alasan']}', 
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                  ),
+                  if (student['foto_path'] != null && student['foto_path'].toString().isNotEmpty && student['foto_path'] != '-') ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => _showBuktiDialog(context, student),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.attachment_rounded, size: 14, color: Color(0xFF4343D9)),
+                          SizedBox(width: 4),
+                          Text('Lihat Bukti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4343D9))),
+                        ],
+                      ),
+                    )
+                  ]
+                ],
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
       },
+    );
+  }
+
+  void _showBuktiDialog(BuildContext context, Map<String, dynamic> student) {
+    final fotoPath = student['foto_path'];
+    final fotoUrl = SupabaseService.getFotoUrl(fotoPath ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Bukti Pengajuan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: fotoUrl.isNotEmpty
+                    ? Image.network(fotoUrl, fit: BoxFit.cover)
+                    : Container(
+                        width: double.infinity,
+                        height: 200,
+                        color: Colors.grey.shade100,
+                        child: const Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey)),
+                      ),
+              ),
+              const SizedBox(height: 16),
+              Text('Status: ${student['status']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Alasan: ${student['alasan']}'),
+              const SizedBox(height: 4),
+              if (student['waktu'] != null)
+                Text('Waktu: ${DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(student['waktu']).toLocal())}', 
+                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

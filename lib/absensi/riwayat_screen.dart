@@ -878,11 +878,47 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text(
-                "LOKASI TERVERIFIKASI",
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
-              ),
-              const SizedBox(height: 8),
+              if (jenis == 'Izin' || jenis == 'Sakit') ...[
+                const Text(
+                  "ALASAN / KETERANGAN",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.notes_rounded, size: 18, color: Color(0xFF4343D9)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item['alasan'] ?? '-',
+                          style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF1A1D20), fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "RENTANG TANGGAL",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 8),
+              ] else ...[
+                const Text(
+                  "LOKASI TERVERIFIKASI",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 8),
+              ],
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -894,7 +930,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF4343D9)),
+                    Icon(
+                      (jenis == 'Izin' || jenis == 'Sakit') ? Icons.calendar_today_rounded : Icons.location_on_outlined, 
+                      size: 18, color: const Color(0xFF4343D9)
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
