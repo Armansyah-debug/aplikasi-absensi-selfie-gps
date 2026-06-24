@@ -137,7 +137,10 @@ class _IzinScreenState extends State<IzinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Pengajuan berhasil dikirim")),
         );
-        Navigator.pop(context);
+        setState(() {
+          _alasanController.clear();
+          _imageBytes = null;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -490,12 +493,17 @@ class _IzinScreenState extends State<IzinScreen> {
 
                   Color badgeBg = const Color(0xFFE8F0FE);
                   Color badgeText = const Color(0xFF1A73E8);
-                  String badgeLabel = 'Menunggu';
+                  String badgeLabel = status; // LANGSUNG TAMPILKAN STATUS DARI DATABASE
 
-                  if (status == 'Disetujui' || status == 'Hadir' || status == 'Selesai') {
+                  if (status == 'Izin') {
+                    badgeBg = const Color(0xFFFFF3E0);
+                    badgeText = const Color(0xFFF57C00);
+                  } else if (status == 'Sakit') {
+                    badgeBg = const Color(0xFFFFEBEE);
+                    badgeText = const Color(0xFFD32F2F);
+                  } else if (status == 'Hadir') {
                     badgeBg = const Color(0xFFE8F5E9);
                     badgeText = const Color(0xFF2E7D32);
-                    badgeLabel = 'Selesai';
                   }
 
                   return Container(

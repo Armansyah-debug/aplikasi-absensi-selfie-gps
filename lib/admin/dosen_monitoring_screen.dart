@@ -590,12 +590,16 @@ class _DosenMonitoringScreenState extends State<DosenMonitoringScreen>
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Success',
+                    Text(
+                      student['status']?.toString() ?? 'Hadir',
                       style: TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF2E7D32),
+                        fontWeight: FontWeight.bold,
+                        color: (student['status'] == 'Izin')
+                            ? const Color(0xFFF57C00)
+                            : (student['status'] == 'Sakit')
+                                ? const Color(0xFFD32F2F)
+                                : const Color(0xFF2E7D32),
                       ),
                     ),
                   ],
